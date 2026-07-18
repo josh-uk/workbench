@@ -5,6 +5,11 @@
 Application routes remain thin. Product UI lives under `src/features`; reusable
 business logic belongs in `src/core`; persistence belongs in `src/db`.
 
+Workspace hierarchy validation lives in
+`src/features/workspaces/domain.ts`. The production repository under
+`src/features/workspaces/data` is marked `server-only`; client components call
+its validated Server Action boundary rather than importing database code.
+
 ## Setup
 
 ```bash
@@ -13,6 +18,16 @@ docker compose up -d database
 cp .env.example .env
 npm run db:migrate
 npm run dev
+```
+
+PostgreSQL integration tests that mutate hierarchy records require an isolated
+database URL. Never point `TEST_DATABASE_URL` at a database containing data you
+want to preserve.
+
+```bash
+TEST_DATABASE_URL=postgresql://workbench:workbench@localhost:5432/workbench_test \
+DATABASE_URL=postgresql://workbench:workbench@localhost:5432/workbench_test \
+npm run test:integration
 ```
 
 ## Change checklist

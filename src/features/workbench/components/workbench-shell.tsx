@@ -1,434 +1,546 @@
 "use client";
 
 import {
-  Braces,
-  ChevronDown,
-  ChevronRight,
-  ChevronsUpDown,
-  CircleDot,
-  Clock3,
-  Code2,
-  FileCode2,
+  Archive,
   Folder,
   FolderOpen,
   History,
   Import,
   KeyRound,
+  LayoutGrid,
   Moon,
-  MoreHorizontal,
   PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Search,
-  Send,
   Settings2,
   Sun,
   Variable,
   Workflow,
-  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  type FormEvent,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  createFolderAction,
+  createProjectAction,
+  createWorkspaceAction,
+  deleteFolderAction,
+  deleteProjectAction,
+  deleteWorkspaceAction,
+  relocateFolderAction,
+  updateFolderAction,
+  updateProjectAction,
+  updateWorkspaceAction,
+} from "@/features/workspaces/actions";
+import type { WorkbenchNavigation } from "@/features/workspaces/domain";
 import { cn } from "@/lib/utils";
 
-const requestTabs = ["Params", "Headers  3", "Body", "Auth", "Tests"];
-const responseTabs = ["Body", "Headers  8", "Cookies", "Timing"] as const;
+import { ProjectOverview } from "./project-overview";
+import {
+  DeleteDialog,
+  EntityEditorDialog,
+  WorkspaceManager,
+} from "./workspace-dialogs";
+import {
+  folderMatchesQuery,
+  FolderTree,
+  NavigationItem,
+  ProjectMenu,
+  WorkspaceMenu,
+} from "./workspace-navigation";
+import type { DeleteState, EditorState, Mutation } from "./workspace-ui-types";
 
-const responseBody = `{
-  "id": "fact_7f31ad",
-  "fact": "Honey never spoils when stored correctly.",
-  "category": "science",
-  "source": {
-    "name": "Workbench Mock API",
-    "verified": true
-  },
-  "createdAt": "2026-07-18T09:42:11.441Z"
-}`;
-
-function MethodBadge({ method }: { method: string }) {
-  const colour =
-    method === "POST"
-      ? "text-warning"
-      : method === "PATCH"
-        ? "text-[#b97af7]"
-        : "text-success";
-
-  return (
-    <span className={cn("w-10 font-mono text-[10px] font-bold", colour)}>
-      {method}
-    </span>
-  );
+interface WorkbenchShellProps {
+  navigation: WorkbenchNavigation;
 }
 
-function RequestItem({ method, name }: { method: string; name: string }) {
-  return (
-    <button
-      type="button"
-      className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-surface-strong"
-    >
-      <MethodBadge method={method} />
-      <span className="truncate">{name}</span>
-    </button>
-  );
-}
-
-function NavigationItem({
-  icon: Icon,
-  label,
-}: {
-  icon: typeof History;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground"
-    >
-      <Icon aria-hidden="true" className="size-3.5" />
-      {label}
-    </button>
-  );
-}
-
-function ProjectTree() {
-  return (
-    <div className="space-y-0.5">
-      <div className="flex items-center rounded-md bg-surface-strong px-2 py-1.5 text-xs font-medium">
-        <ChevronDown aria-hidden="true" className="mr-1 size-3.5" />
-        <FolderOpen aria-hidden="true" className="mr-2 size-3.5 text-accent" />
-        Project A
-        <MoreHorizontal
-          aria-hidden="true"
-          className="ml-auto size-3.5 text-muted"
-        />
-      </div>
-      <div className="ml-3 border-l pl-2">
-        <div className="flex items-center px-2 py-1.5 text-xs font-medium">
-          <ChevronDown aria-hidden="true" className="mr-1 size-3.5" />
-          <Folder aria-hidden="true" className="mr-2 size-3.5 text-muted" />
-          Authentication
-        </div>
-        <div className="ml-4">
-          <RequestItem method="POST" name="Generate OAuth token" />
-        </div>
-        <div className="flex items-center px-2 py-1.5 text-xs font-medium">
-          <ChevronDown aria-hidden="true" className="mr-1 size-3.5" />
-          <Folder aria-hidden="true" className="mr-2 size-3.5 text-muted" />
-          Facts
-        </div>
-        <div className="ml-4 space-y-0.5">
-          <RequestItem method="GET" name="Get fact" />
-          <RequestItem method="POST" name="Search facts" />
-          <RequestItem method="POST" name="Create fact" />
-          <RequestItem method="PATCH" name="Update fact" />
-        </div>
-        <div className="flex items-center px-2 py-1.5 text-xs font-medium">
-          <ChevronRight aria-hidden="true" className="mr-1 size-3.5" />
-          <Folder aria-hidden="true" className="mr-2 size-3.5 text-muted" />
-          Reference Data
-        </div>
-      </div>
-      <div className="flex items-center rounded-md px-2 py-1.5 text-xs text-muted">
-        <ChevronRight aria-hidden="true" className="mr-1 size-3.5" />
-        <Folder aria-hidden="true" className="mr-2 size-3.5" />
-        Project B
-      </div>
-      <div className="flex items-center rounded-md px-2 py-1.5 text-xs text-muted">
-        <ChevronRight aria-hidden="true" className="mr-1 size-3.5" />
-        <Folder aria-hidden="true" className="mr-2 size-3.5" />
-        Project C
-      </div>
-    </div>
-  );
-}
-
-function Sidebar() {
-  return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r bg-surface-subtle lg:flex">
-      <div className="flex h-11 items-center justify-between border-b px-3">
-        <span className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">
-          Navigator
-        </span>
-        <div className="flex items-center gap-0.5">
-          <Button aria-label="Create request" size="icon" variant="ghost">
-            <Plus aria-hidden="true" className="size-3.5" />
-          </Button>
-          <Button aria-label="Collapse sidebar" size="icon" variant="ghost">
-            <PanelLeftClose aria-hidden="true" className="size-3.5" />
-          </Button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-auto px-2 py-3">
-        <div className="mb-4 space-y-0.5">
-          <NavigationItem icon={Variable} label="Workspace variables" />
-          <NavigationItem icon={KeyRound} label="Authentication profiles" />
-          <NavigationItem icon={Import} label="Imported definitions" />
-          <NavigationItem icon={Workflow} label="Workflows" />
-          <NavigationItem icon={History} label="Request history" />
-        </div>
-        <div className="mb-2 flex items-center justify-between px-2">
-          <span className="text-[10px] font-semibold tracking-[0.12em] text-muted uppercase">
-            Projects
-          </span>
-          <Plus aria-hidden="true" className="size-3.5 text-muted" />
-        </div>
-        <ProjectTree />
-      </div>
-      <div className="border-t p-2">
-        <NavigationItem icon={Settings2} label="Settings" />
-      </div>
-    </aside>
-  );
-}
-
-function Topbar({
-  dark,
-  onToggleTheme,
-}: {
-  dark: boolean;
-  onToggleTheme: () => void;
-}) {
-  return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-surface px-3 sm:px-4">
-      <div className="flex min-w-fit items-center gap-2.5">
-        <div className="grid size-7 place-items-center rounded-lg bg-accent font-mono text-xs font-bold text-accent-foreground shadow-sm">
-          W
-        </div>
-        <span className="hidden text-sm font-semibold tracking-tight sm:inline">
-          Workbench
-        </span>
-      </div>
-      <div aria-hidden="true" className="h-5 border-l" />
-      <button
-        type="button"
-        className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium hover:bg-surface-subtle"
-      >
-        <span className="size-1.5 rounded-full bg-accent" />
-        <span className="max-w-24 truncate">Work</span>
-        <ChevronsUpDown aria-hidden="true" className="size-3 text-muted" />
-      </button>
-      <div className="ml-auto hidden max-w-sm flex-1 md:block">
-        <label className="sr-only" htmlFor="global-search">
-          Search requests and projects
-        </label>
-        <div className="relative">
-          <Search
-            aria-hidden="true"
-            className="absolute top-2 left-2.5 size-3.5 text-muted"
-          />
-          <input
-            id="global-search"
-            className="h-8 w-full rounded-md border bg-surface-subtle pl-8 text-xs shadow-inner placeholder:text-muted"
-            placeholder="Search requests and projects"
-          />
-          <kbd className="absolute top-1.5 right-2 rounded border px-1.5 py-0.5 font-sans text-[10px] text-muted">
-            ⌘K
-          </kbd>
-        </div>
-      </div>
-      <button
-        type="button"
-        className="flex items-center gap-2 rounded-md border border-success/25 bg-success/10 px-2.5 py-1.5 text-xs font-medium text-success"
-      >
-        <CircleDot aria-hidden="true" className="size-3" />
-        Local
-      </button>
-      <Button
-        aria-label={dark ? "Use light theme" : "Use dark theme"}
-        onClick={onToggleTheme}
-        size="icon"
-        variant="ghost"
-      >
-        {dark ? (
-          <Sun aria-hidden="true" className="size-4" />
-        ) : (
-          <Moon aria-hidden="true" className="size-4" />
-        )}
-      </Button>
-    </header>
-  );
-}
-
-function RequestEditor() {
-  return (
-    <section className="flex min-h-0 flex-[1.05] flex-col border-b bg-surface xl:border-r xl:border-b-0">
-      <div className="flex h-10 shrink-0 items-center border-b px-2">
-        <div className="flex h-full items-center gap-2 border-x border-t bg-surface-subtle px-3 text-xs font-medium">
-          <MethodBadge method="GET" />
-          Get fact
-          <span
-            className="size-1.5 rounded-full bg-warning"
-            aria-label="Unsaved changes"
-          />
-          <X aria-hidden="true" className="ml-2 size-3 text-muted" />
-        </div>
-        <Button aria-label="New request tab" size="icon" variant="ghost">
-          <Plus aria-hidden="true" className="size-3.5" />
-        </Button>
-      </div>
-      <div className="flex items-center gap-2 p-3">
-        <label className="sr-only" htmlFor="request-method">
-          HTTP method
-        </label>
-        <select
-          id="request-method"
-          defaultValue="GET"
-          className="h-9 rounded-md border border-success/40 bg-success/10 px-2 font-mono text-xs font-bold text-success"
-        >
-          <option>GET</option>
-          <option>POST</option>
-          <option>PUT</option>
-          <option>PATCH</option>
-          <option>DELETE</option>
-        </select>
-        <label className="sr-only" htmlFor="request-url">
-          Request URL
-        </label>
-        <div className="relative min-w-0 flex-1">
-          <input
-            id="request-url"
-            defaultValue="{{baseUrl}}/facts/fact_7f31ad"
-            className="h-9 w-full rounded-md border bg-code-background px-3 font-mono text-xs shadow-inner"
-          />
-          <span className="absolute top-2.5 right-2.5 text-[10px] text-muted">
-            2 variables
-          </span>
-        </div>
-        <Button>
-          <Send aria-hidden="true" className="size-3.5" />
-          Send
-          <span className="ml-1 border-l border-accent-foreground/20 pl-2 text-[10px] opacity-70">
-            ⌘↵
-          </span>
-        </Button>
-      </div>
-      <div className="flex h-9 shrink-0 items-end gap-1 border-b px-3">
-        {requestTabs.map((tab) => (
-          <button
-            type="button"
-            key={tab}
-            className={cn(
-              "h-9 border-b-2 border-transparent px-2 text-xs font-medium text-muted",
-              tab === "Body" && "border-accent text-foreground",
-            )}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex h-10 shrink-0 items-center justify-between border-b px-4">
-          <div className="flex items-center gap-2 text-xs font-medium">
-            <Braces aria-hidden="true" className="size-3.5 text-accent" />
-            JSON
-            <ChevronDown aria-hidden="true" className="size-3 text-muted" />
-          </div>
-          <span className="font-mono text-[10px] text-muted">
-            UTF-8 · 7 lines
-          </span>
-        </div>
-        <div className="min-h-52 flex-1 overflow-auto bg-code-background p-4 font-mono text-xs leading-6">
-          <div className="grid grid-cols-[1.5rem_1fr]">
-            {["{", '  "category": "science",', '  "limit": 10', "}"].map(
-              (line, index) => (
-                <div className="contents" key={line}>
-                  <span className="text-muted select-none">{index + 1}</span>
-                  <code>{line}</code>
-                </div>
-              ),
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="flex h-8 shrink-0 items-center gap-4 border-t px-3 text-[10px] text-muted">
-        <span>Environment: Local</span>
-        <span>Timeout: 30s</span>
-        <span className="ml-auto">Saved 1 min ago</span>
-      </div>
-    </section>
-  );
-}
-
-function ResponseViewer() {
-  const [activeTab, setActiveTab] =
-    useState<(typeof responseTabs)[number]>("Body");
-
-  return (
-    <section className="flex min-h-0 flex-1 flex-col bg-surface">
-      <div className="flex h-11 shrink-0 items-center gap-3 border-b px-3">
-        <span className="text-xs font-semibold">Response</span>
-        <span className="rounded bg-success/10 px-2 py-1 font-mono text-[11px] font-bold text-success">
-          200 OK
-        </span>
-        <span className="flex items-center gap-1 text-[11px] text-muted">
-          <Clock3 aria-hidden="true" className="size-3" /> 128 ms
-        </span>
-        <span className="text-[11px] text-muted">1.2 KB</span>
-        <Button className="ml-auto" size="sm" variant="ghost">
-          <Code2 aria-hidden="true" className="size-3.5" /> Copy
-        </Button>
-      </div>
-      <div className="flex h-9 shrink-0 items-end gap-1 border-b px-3">
-        {responseTabs.map((tab) => (
-          <button
-            type="button"
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "h-9 border-b-2 border-transparent px-2 text-xs font-medium text-muted",
-              activeTab === tab && "border-accent text-foreground",
-            )}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-      <div className="flex h-9 shrink-0 items-center justify-between border-b px-4">
-        <div className="flex items-center gap-2 text-xs font-medium">
-          <FileCode2 aria-hidden="true" className="size-3.5 text-accent" />
-          Pretty
-          <span className="text-muted">JSON</span>
-        </div>
-        <span className="font-mono text-[10px] text-muted">
-          application/json
-        </span>
-      </div>
-      <div className="min-h-52 flex-1 overflow-auto bg-code-background p-4">
-        {activeTab === "Body" ? (
-          <pre className="font-mono text-xs leading-6 whitespace-pre-wrap">
-            <code>{responseBody}</code>
-          </pre>
-        ) : (
-          <div className="grid place-items-center py-20 text-sm text-muted">
-            {activeTab} details will appear here.
-          </div>
-        )}
-      </div>
-      <div className="flex h-8 shrink-0 items-center border-t px-3 text-[10px] text-muted">
-        <span className="mr-2 size-1.5 rounded-full bg-success" />
-        Completed at 10:42:11
-        <span className="ml-auto">Request #184</span>
-      </div>
-    </section>
-  );
-}
-
-export function WorkbenchShell() {
+export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
+  const router = useRouter();
+  const searchRef = useRef<HTMLInputElement>(null);
   const [dark, setDark] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [query, setQuery] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
+  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
+  const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
+  const [notice, setNotice] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const activeWorkspace =
+    navigation.workspaces.find(
+      ({ id }) => id === navigation.activeWorkspaceId,
+    ) ?? navigation.workspaces[0];
+  const normalisedQuery = query.toLocaleLowerCase();
+  const visibleProjects = activeWorkspace?.projects.filter(
+    (project) =>
+      !normalisedQuery ||
+      project.name.toLocaleLowerCase().includes(normalisedQuery) ||
+      project.folders.some((folder) =>
+        folderMatchesQuery(folder, normalisedQuery),
+      ),
+  );
+  const activeProjects =
+    visibleProjects?.filter(({ archived }) => !archived) ?? [];
+  const archivedProjects =
+    visibleProjects?.filter(({ archived }) => archived) ?? [];
+  const selectedProject =
+    activeWorkspace?.projects.find(
+      ({ id, archived }) => id === selectedProjectId && !archived,
+    ) ?? activeWorkspace?.projects.find(({ archived }) => !archived);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLocaleLowerCase() === "k"
+      ) {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const runMutation = (
+    mutation: Mutation,
+    success: string,
+    after?: () => void,
+  ) => {
+    setNotice(null);
+    startTransition(async () => {
+      const result = await mutation();
+      if (!result.ok) {
+        setNotice({ tone: "error", text: result.error });
+        return;
+      }
+      after?.();
+      setNotice({ tone: "success", text: success });
+      router.refresh();
+    });
+  };
+
+  const submitEditor = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editor) return;
+
+    const close = () => setEditor(null);
+    switch (editor.kind) {
+      case "create-workspace":
+        runMutation(
+          () => createWorkspaceAction(editor),
+          "Workspace created.",
+          close,
+        );
+        break;
+      case "edit-workspace":
+        runMutation(
+          () => updateWorkspaceAction(editor),
+          "Workspace updated.",
+          close,
+        );
+        break;
+      case "create-project":
+        runMutation(
+          () => createProjectAction(editor),
+          "Project created.",
+          close,
+        );
+        break;
+      case "edit-project":
+        runMutation(
+          () => updateProjectAction(editor),
+          "Project updated.",
+          close,
+        );
+        break;
+      case "create-folder":
+        runMutation(() => createFolderAction(editor), "Folder created.", close);
+        break;
+      case "edit-folder":
+        runMutation(() => updateFolderAction(editor), "Folder renamed.", close);
+        break;
+      case "relocate-folder":
+        runMutation(
+          () =>
+            relocateFolderAction({
+              folderId: editor.id,
+              parentId: editor.parentId,
+            }),
+          "Folder moved.",
+          close,
+        );
+        break;
+    }
+  };
+
+  const confirmDelete = () => {
+    if (!deleteState) return;
+    const current = deleteState;
+    const mutation =
+      current.kind === "workspace"
+        ? () => deleteWorkspaceAction({ workspaceId: current.id })
+        : current.kind === "project"
+          ? () => deleteProjectAction({ projectId: current.id })
+          : () => deleteFolderAction({ folderId: current.id });
+    runMutation(mutation, `${current.name} deleted.`, () =>
+      setDeleteState(null),
+    );
+  };
 
   return (
     <div
-      data-theme={dark ? "dark" : "light"}
       className="flex h-dvh min-h-[620px] flex-col overflow-hidden bg-background text-foreground"
+      data-theme={dark ? "dark" : "light"}
     >
-      <Topbar dark={dark} onToggleTheme={() => setDark((value) => !value)} />
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-surface px-3 sm:px-4">
+        <div className="flex min-w-fit items-center gap-2.5">
+          <div className="grid size-7 place-items-center rounded-lg bg-accent font-mono text-xs font-bold text-accent-foreground shadow-sm">
+            W
+          </div>
+          <span className="hidden text-sm font-semibold tracking-tight sm:inline">
+            Workbench
+          </span>
+        </div>
+        <div aria-hidden="true" className="h-5 border-l" />
+        <WorkspaceMenu
+          activeWorkspace={activeWorkspace}
+          navigation={navigation}
+          onCreate={() =>
+            setEditor({ kind: "create-workspace", name: "", description: "" })
+          }
+          onManage={() => setWorkspaceManagerOpen(true)}
+          pending={pending}
+          runMutation={runMutation}
+        />
+        {!sidebarOpen ? (
+          <Button
+            aria-label="Open sidebar"
+            className="hidden lg:inline-flex"
+            onClick={() => setSidebarOpen(true)}
+            size="icon"
+            variant="ghost"
+          >
+            <PanelLeftOpen aria-hidden="true" className="size-4" />
+          </Button>
+        ) : null}
+        <div className="ml-auto hidden max-w-sm flex-1 md:block">
+          <label className="sr-only" htmlFor="global-search">
+            Search projects and folders
+          </label>
+          <div className="relative">
+            <Search
+              aria-hidden="true"
+              className="absolute top-2 left-2.5 size-3.5 text-muted"
+            />
+            <input
+              className="h-8 w-full rounded-md border bg-surface-subtle pr-12 pl-8 text-xs shadow-inner placeholder:text-muted"
+              id="global-search"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search projects and folders"
+              ref={searchRef}
+              value={query}
+            />
+            <kbd className="absolute top-1.5 right-2 rounded border px-1.5 py-0.5 font-sans text-[10px] text-muted">
+              ⌘K
+            </kbd>
+          </div>
+        </div>
+        <span className="hidden items-center gap-2 rounded-md border border-success/25 bg-success/10 px-2.5 py-1.5 text-xs font-medium text-success sm:flex">
+          <span className="size-1.5 rounded-full bg-success" /> Local
+        </span>
+        <Button
+          aria-label={dark ? "Use light theme" : "Use dark theme"}
+          onClick={() => setDark((value) => !value)}
+          size="icon"
+          variant="ghost"
+        >
+          {dark ? (
+            <Sun aria-hidden="true" className="size-4" />
+          ) : (
+            <Moon aria-hidden="true" className="size-4" />
+          )}
+        </Button>
+      </header>
+
       <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <main className="flex min-w-0 flex-1 flex-col xl:flex-row">
-          <RequestEditor />
-          <ResponseViewer />
-        </main>
+        <aside
+          className={cn(
+            "hidden w-72 shrink-0 flex-col border-r bg-surface-subtle lg:flex",
+            !sidebarOpen && "lg:hidden",
+          )}
+        >
+          <div className="flex h-11 items-center justify-between border-b px-3">
+            <span className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">
+              Navigator
+            </span>
+            <Button
+              aria-label="Collapse sidebar"
+              onClick={() => setSidebarOpen(false)}
+              size="icon"
+              variant="ghost"
+            >
+              <PanelLeftClose aria-hidden="true" className="size-3.5" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-auto px-2 py-3">
+            <div className="mb-4 space-y-0.5">
+              <NavigationItem icon={Variable} label="Workspace variables" />
+              <NavigationItem icon={KeyRound} label="Authentication profiles" />
+              <NavigationItem icon={Import} label="Imported definitions" />
+              <NavigationItem icon={Workflow} label="Workflows" />
+              <NavigationItem icon={History} label="Request history" />
+            </div>
+            <div className="mb-2 flex items-center justify-between px-2">
+              <span className="text-[10px] font-semibold tracking-[0.12em] text-muted uppercase">
+                Projects
+              </span>
+              <Button
+                aria-label="Create project"
+                disabled={!activeWorkspace || pending}
+                onClick={() =>
+                  activeWorkspace &&
+                  setEditor({
+                    kind: "create-project",
+                    workspaceId: activeWorkspace.id,
+                    name: "",
+                    description: "",
+                  })
+                }
+                size="icon"
+                variant="ghost"
+              >
+                <Plus aria-hidden="true" className="size-3.5" />
+              </Button>
+            </div>
+            {activeProjects.map((project) => {
+              const selected = project.id === selectedProject?.id;
+              return (
+                <div className="mb-0.5" key={project.id}>
+                  <div
+                    className={cn(
+                      "group flex items-center rounded-md",
+                      selected && "bg-surface-strong text-foreground",
+                    )}
+                  >
+                    <button
+                      className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-xs font-medium"
+                      onClick={() => setSelectedProjectId(project.id)}
+                      type="button"
+                    >
+                      {selected ? (
+                        <FolderOpen
+                          aria-hidden="true"
+                          className="size-3.5 shrink-0 text-accent"
+                        />
+                      ) : (
+                        <Folder
+                          aria-hidden="true"
+                          className="size-3.5 shrink-0 text-muted"
+                        />
+                      )}
+                      <span className="truncate">{project.name}</span>
+                    </button>
+                    <ProjectMenu
+                      onDelete={() =>
+                        setDeleteState({
+                          kind: "project",
+                          id: project.id,
+                          name: project.name,
+                        })
+                      }
+                      onEdit={() =>
+                        setEditor({
+                          kind: "edit-project",
+                          id: project.id,
+                          name: project.name,
+                          description: project.description ?? "",
+                        })
+                      }
+                      pending={pending}
+                      project={project}
+                      runMutation={runMutation}
+                    />
+                  </div>
+                  {selected ? (
+                    <div className="ml-3 border-l pl-1">
+                      {project.folders.length ? (
+                        <FolderTree
+                          folders={project.folders}
+                          pending={pending}
+                          query={normalisedQuery}
+                          runMutation={runMutation}
+                          setDeleteState={setDeleteState}
+                          setEditor={setEditor}
+                        />
+                      ) : (
+                        <button
+                          className="ml-2 flex items-center gap-2 px-2 py-2 text-[11px] text-muted hover:text-foreground"
+                          onClick={() =>
+                            setEditor({
+                              kind: "create-folder",
+                              projectId: project.id,
+                              parentId: null,
+                              name: "",
+                            })
+                          }
+                          type="button"
+                        >
+                          <Plus aria-hidden="true" className="size-3" /> Add
+                          first folder
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+            {!activeWorkspace ? (
+              <button
+                className="w-full rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted hover:border-accent hover:text-foreground"
+                onClick={() =>
+                  setEditor({
+                    kind: "create-workspace",
+                    name: "",
+                    description: "",
+                  })
+                }
+                type="button"
+              >
+                <Plus aria-hidden="true" className="mx-auto mb-2 size-4" />{" "}
+                Create a workspace
+              </button>
+            ) : activeProjects.length === 0 && !query ? (
+              <p className="px-2 py-4 text-xs leading-5 text-muted">
+                No active projects. Use + to create one.
+              </p>
+            ) : null}
+            {archivedProjects.length ? (
+              <div className="mt-5">
+                <p className="mb-1 px-2 text-[10px] font-semibold tracking-wider text-muted uppercase">
+                  Archived
+                </p>
+                {archivedProjects.map((project) => (
+                  <div
+                    className="group flex items-center rounded-md text-muted"
+                    key={project.id}
+                  >
+                    <Archive aria-hidden="true" className="ml-2 size-3.5" />
+                    <span className="min-w-0 flex-1 truncate px-2 py-1.5 text-xs">
+                      {project.name}
+                    </span>
+                    <ProjectMenu
+                      onDelete={() =>
+                        setDeleteState({
+                          kind: "project",
+                          id: project.id,
+                          name: project.name,
+                        })
+                      }
+                      onEdit={() =>
+                        setEditor({
+                          kind: "edit-project",
+                          id: project.id,
+                          name: project.name,
+                          description: project.description ?? "",
+                        })
+                      }
+                      pending={pending}
+                      project={project}
+                      runMutation={runMutation}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <div className="border-t p-2">
+            <NavigationItem icon={Settings2} label="Settings" />
+          </div>
+        </aside>
+
+        {activeWorkspace ? (
+          <ProjectOverview project={selectedProject} setEditor={setEditor} />
+        ) : (
+          <main className="grid min-w-0 flex-1 place-items-center bg-background p-8 text-center">
+            <div className="max-w-lg">
+              <div className="mx-auto grid size-16 place-items-center rounded-2xl border bg-surface shadow-sm">
+                <LayoutGrid aria-hidden="true" className="size-7 text-accent" />
+              </div>
+              <h1 className="mt-6 text-2xl font-semibold tracking-tight">
+                Start with a workspace
+              </h1>
+              <p className="mt-2 text-sm leading-6 text-muted">
+                Workspaces are broad areas such as Work, Personal, or a client.
+                Everything remains on this installation.
+              </p>
+              <Button
+                className="mt-5"
+                onClick={() =>
+                  setEditor({
+                    kind: "create-workspace",
+                    name: "",
+                    description: "",
+                  })
+                }
+              >
+                <Plus aria-hidden="true" className="size-4" /> Create workspace
+              </Button>
+            </div>
+          </main>
+        )}
       </div>
+
+      <EntityEditorDialog
+        editor={editor}
+        folders={selectedProject?.folders ?? []}
+        pending={pending}
+        setEditor={setEditor}
+        submit={submitEditor}
+      />
+      <WorkspaceManager
+        navigation={navigation}
+        open={workspaceManagerOpen}
+        pending={pending}
+        runMutation={runMutation}
+        setDeleteState={setDeleteState}
+        setEditor={setEditor}
+        setOpen={setWorkspaceManagerOpen}
+      />
+      <DeleteDialog
+        pending={pending}
+        setState={setDeleteState}
+        state={deleteState}
+        submit={confirmDelete}
+      />
+      {notice ? (
+        <div
+          aria-live="polite"
+          className={cn(
+            "fixed right-4 bottom-4 z-[70] max-w-sm rounded-lg border bg-surface px-4 py-3 text-sm shadow-xl",
+            notice.tone === "error"
+              ? "border-red-500/40 text-red-500"
+              : "border-success/40 text-success",
+          )}
+          role="status"
+        >
+          {notice.text}
+        </div>
+      ) : null}
     </div>
   );
 }

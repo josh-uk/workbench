@@ -5,8 +5,8 @@ reusable authentication, OpenAPI imports, and developer workflows. It is built
 for developers who want the structure of a project workspace without tying
 their API collections to a Git repository or a hosted account.
 
-> Workbench is under active development. The repository foundation and product
-> shell are in place; functional product areas are delivered through the
+> Workbench is under active development. Workspace, project, and folder
+> management are functional; later product areas are delivered through the
 > numbered phase issues.
 
 ## Why Workbench
@@ -31,12 +31,13 @@ their API collections to a Git repository or a hosted account.
 
 ## Current interface
 
-![Workbench request editor and response viewer](docs/images/foundation-workspace.png)
+![Workbench workspace and project management](docs/images/phase-2-workspace-management.png)
 
-The foundation shell uses generic seeded data while workspace, request, and
-execution persistence are delivered in the next product phases. Documentation
-screenshots are captured from the running application at a stable 1440×900
-viewport and must never contain secrets.
+The interface reads workspaces, projects, nested folders, and active-workspace
+selection from PostgreSQL. Users can create, rename, duplicate, reorder,
+archive, restore, move, and delete the relevant records. Request editing and
+execution arrive in Phase 3. Documentation screenshots are captured from the
+real application with generic data and must never contain secrets.
 
 ## Quick start
 
@@ -133,7 +134,7 @@ Next.js application
 ```
 
 See [Architecture](docs/architecture.md), [Data model](docs/data-model.md), and
-the [architecture decision records](docs/adr/README.md).
+the [workspace management design](docs/workspace-management.md).
 
 ## Testing and security
 
@@ -164,9 +165,9 @@ ghcr.io/josh-uk/workbench
 ```
 
 Images are tagged with `latest` and the full Git commit SHA. Semantic version
-tags such as `v1.0.0` also create versioned images and a GitHub release. The
-repository and its packages are private unless the owner changes their
-visibility explicitly.
+tags such as `v1.0.0` also create versioned images and a GitHub release. This
+repository is public; GitHub Container Registry package visibility is managed
+separately by the repository owner.
 
 ## Contributing
 

@@ -11,6 +11,8 @@ const buttonVariants = cva(
       variant: {
         default:
           "bg-accent text-accent-foreground shadow-sm hover:brightness-105",
+        destructive:
+          "bg-red-600 text-white shadow-sm hover:bg-red-500 dark:bg-red-500 dark:hover:bg-red-400",
         secondary:
           "border bg-surface text-foreground shadow-sm hover:bg-surface-subtle",
         ghost: "text-muted hover:bg-surface-subtle hover:text-foreground",
