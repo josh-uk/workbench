@@ -91,5 +91,9 @@ export const runtimeOutputs = pgTable(
       table.definitionId,
       table.createdAt,
     ),
+    uniqueIndex("runtime_outputs_definition_execution_unique").on(
+      table.definitionId,
+      table.executionId,
+    ),
   ],
 );

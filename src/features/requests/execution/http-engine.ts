@@ -69,6 +69,8 @@ export interface EngineResponse {
   bodyPreview: string;
   bodyTruncated: boolean;
   contentType: string | null;
+  /** Server-only response text used for output extraction. Never persist or return it. */
+  rawBody: string | null;
 }
 
 interface SerialisedBody {
@@ -538,6 +540,7 @@ export async function executeHttpRequest(
       : (response.headers["content-type"] ?? null);
     const previewBytes = response.body.subarray(0, MAX_PERSISTED_PREVIEW_BYTES);
     const text = isTextContent(contentType);
+    const rawBody = text ? response.body.toString("utf8") : null;
 
     return {
       statusCode: response.statusCode,
@@ -552,6 +555,7 @@ export async function executeHttpRequest(
         : previewBytes.toString("base64"),
       bodyTruncated: response.body.byteLength > previewBytes.byteLength,
       contentType,
+      rawBody,
     };
   } catch (error) {
     if (externalSignal.aborted) {

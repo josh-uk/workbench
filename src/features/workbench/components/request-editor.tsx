@@ -5,7 +5,9 @@ import {
   Braces,
   Copy,
   FileUp,
+  KeyRound,
   LoaderCircle,
+  Plus,
   Save,
   Send,
   Square,
@@ -42,8 +44,10 @@ const requestTabs = [
   "Params",
   "Headers",
   "Cookies",
+  "Auth",
   "Variables",
   "Body",
+  "Outputs",
   "Settings",
 ] as const;
 
@@ -66,6 +70,7 @@ function flattenFolders(folders: FolderNode[]) {
 function normaliseDraft(detail: SavedRequestDetail) {
   return {
     id: detail.id,
+    authProfileId: detail.authProfileId,
     name: detail.name,
     description: detail.description ?? "",
     method: detail.method,
@@ -79,6 +84,7 @@ function normaliseDraft(detail: SavedRequestDetail) {
     })),
     headers: detail.headers,
     requestVariables: detail.requestVariables,
+    outputDefinitions: detail.outputDefinitions,
     body: detail.body,
     settings: detail.settings,
   };
@@ -476,6 +482,40 @@ export function RequestEditor({
                 }
               />
             ) : null}
+            {tab === "Auth" ? (
+              <div className="max-w-3xl space-y-4">
+                <label className="space-y-1.5 text-xs font-medium">
+                  Authentication profile
+                  <select
+                    aria-label="Authentication profile"
+                    className="h-10 w-full rounded-md border bg-surface-subtle px-2.5 text-xs"
+                    onChange={(event) =>
+                      update({ authProfileId: event.target.value || null })
+                    }
+                    value={detail.authProfileId ?? ""}
+                  >
+                    <option value="">No authentication</option>
+                    {detail.availableAuthProfiles.map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name} · {profile.type.replaceAll("_", " ")} ·{" "}
+                        {profile.scope}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex gap-3 rounded-lg border bg-surface-subtle p-4 text-xs text-muted">
+                  <KeyRound
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0 text-accent"
+                  />
+                  <p className="leading-5">
+                    Credentials are resolved by the server immediately before
+                    execution. OAuth and request-derived profiles reuse fresh
+                    cached tokens and retain only a redacted trace in history.
+                  </p>
+                </div>
+              </div>
+            ) : null}
             {tab === "Variables" ? (
               <div className="space-y-5">
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -705,6 +745,132 @@ export function RequestEditor({
                     This request has no body.
                   </p>
                 )}
+              </div>
+            ) : null}
+            {tab === "Outputs" ? (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xs font-semibold">Published outputs</h3>
+                  <p className="mt-1 text-[11px] leading-5 text-muted">
+                    Extract values from successful JSON responses. The newest
+                    unexpired value becomes a generated variable for later
+                    requests in this project.
+                  </p>
+                </div>
+                {detail.outputDefinitions.length ? (
+                  <div className="space-y-2">
+                    {detail.outputDefinitions.map((output, index) => (
+                      <div
+                        className="grid gap-2 rounded-lg border bg-surface-subtle p-3 sm:grid-cols-[1fr_1.35fr_1.35fr_auto_auto]"
+                        key={index}
+                      >
+                        <input
+                          aria-label={`Output ${index + 1} name`}
+                          className="h-9 rounded-md border bg-background px-2.5 font-mono text-xs"
+                          onChange={(event) => {
+                            const outputDefinitions = [
+                              ...detail.outputDefinitions,
+                            ];
+                            outputDefinitions[index] = {
+                              ...output,
+                              name: event.target.value,
+                            };
+                            update({ outputDefinitions });
+                          }}
+                          placeholder="accessToken"
+                          value={output.name}
+                        />
+                        <input
+                          aria-label={`Output ${index + 1} JSONPath`}
+                          className="h-9 rounded-md border bg-background px-2.5 font-mono text-xs"
+                          onChange={(event) => {
+                            const outputDefinitions = [
+                              ...detail.outputDefinitions,
+                            ];
+                            outputDefinitions[index] = {
+                              ...output,
+                              jsonPath: event.target.value,
+                            };
+                            update({ outputDefinitions });
+                          }}
+                          placeholder="$.access_token"
+                          value={output.jsonPath}
+                        />
+                        <input
+                          aria-label={`Output ${index + 1} expiry JSONPath`}
+                          className="h-9 rounded-md border bg-background px-2.5 font-mono text-xs"
+                          onChange={(event) => {
+                            const outputDefinitions = [
+                              ...detail.outputDefinitions,
+                            ];
+                            outputDefinitions[index] = {
+                              ...output,
+                              expiresInJsonPath: event.target.value || null,
+                            };
+                            update({ outputDefinitions });
+                          }}
+                          placeholder="Expiry seconds path (optional)"
+                          value={output.expiresInJsonPath ?? ""}
+                        />
+                        <label className="flex h-9 items-center gap-2 px-1 text-xs">
+                          <input
+                            checked={output.secret}
+                            className="size-4 accent-accent"
+                            onChange={(event) => {
+                              const outputDefinitions = [
+                                ...detail.outputDefinitions,
+                              ];
+                              outputDefinitions[index] = {
+                                ...output,
+                                secret: event.target.checked,
+                              };
+                              update({ outputDefinitions });
+                            }}
+                            type="checkbox"
+                          />
+                          Secret
+                        </label>
+                        <Button
+                          aria-label={`Remove output ${index + 1}`}
+                          onClick={() =>
+                            update({
+                              outputDefinitions:
+                                detail.outputDefinitions.filter(
+                                  (_, candidate) => candidate !== index,
+                                ),
+                            })
+                          }
+                          size="icon"
+                          variant="ghost"
+                        >
+                          <Trash2 aria-hidden="true" className="size-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed p-8 text-center text-xs text-muted">
+                    This request does not publish outputs yet.
+                  </p>
+                )}
+                <Button
+                  onClick={() =>
+                    update({
+                      outputDefinitions: [
+                        ...detail.outputDefinitions,
+                        {
+                          name: "",
+                          jsonPath: "$.value",
+                          expiresInJsonPath: null,
+                          secret: false,
+                        },
+                      ],
+                    })
+                  }
+                  variant="secondary"
+                >
+                  <Plus aria-hidden="true" className="size-4" /> Add output
+                </Button>
               </div>
             ) : null}
             {tab === "Settings" ? (

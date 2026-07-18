@@ -121,6 +121,7 @@ export const requestOutputDefinitions = pgTable(
       .references(() => savedRequests.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     jsonPath: text("json_path").notNull(),
+    expiresInJsonPath: text("expires_in_json_path"),
     secret: boolean("secret").notNull().default(false),
     position: integer("position").notNull().default(0),
     ...timestamps(),

@@ -53,6 +53,15 @@ response history. Secret taint propagates through nested interpolation, and
 temporary runtime overrides are never persisted as configuration. Exports omit
 secrets by default when the export phase is implemented.
 
+Authentication profiles follow the same local trust model. Secret profile
+fields are replaced with a fixed placeholder in browser DTOs, and saving that
+placeholder preserves the existing server-side value. Direct OAuth access and
+refresh tokens live only in the local database cache and server execution path.
+Saved-request token outputs are masked in output views and redacted from response
+metadata before persistence. Authentication traces contain profile identity,
+credential source, and injection target, but never the credential. Editing a
+profile or override invalidates its direct OAuth cache.
+
 ## Dependencies and images
 
 CI fails for high-severity npm audit findings. Dependabot monitors npm, Docker,

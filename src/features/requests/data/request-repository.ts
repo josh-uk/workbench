@@ -1,17 +1,32 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, isNull, max, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  max,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 
+import { maskSecret } from "@/core/secrets/redaction";
 import { getDatabase } from "@/db/client";
 import {
+  authProfiles,
   folders,
   environments,
   projects,
   requestBodies,
   requestExecutions,
   requestHeaders,
+  requestOutputDefinitions,
   requestQueryParameters,
   responseMetadata,
+  runtimeOutputs,
   savedRequests,
   variables,
 } from "@/db/schema";
@@ -26,14 +41,21 @@ import {
   type ResponseHeader,
   type SavedRequestDetail,
   type SavedRequestSummary,
-  type updateSavedRequestSchema,
+  updateSavedRequestSchema,
 } from "@/features/requests/domain";
 import type { z } from "zod";
 
 type Database = ReturnType<typeof getDatabase>;
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type QueryExecutor = Database | Transaction;
-type SavedRequestValues = z.infer<typeof updateSavedRequestSchema>;
+type ParsedSavedRequestValues = z.output<typeof updateSavedRequestSchema>;
+type SavedRequestValues = Omit<
+  ParsedSavedRequestValues,
+  "authProfileId" | "outputDefinitions"
+> &
+  Partial<
+    Pick<ParsedSavedRequestValues, "authProfileId" | "outputDefinitions">
+  >;
 
 export interface ExecutionSuccess {
   statusCode: number;
@@ -110,6 +132,34 @@ async function assertFolderInProject(
   }
 }
 
+async function assertAuthProfileInProject(
+  executor: QueryExecutor,
+  projectId: string,
+  authProfileId: string | null,
+) {
+  if (!authProfileId) return;
+  const project = await getProject(executor, projectId);
+  const [profile] = await executor
+    .select({ id: authProfiles.id })
+    .from(authProfiles)
+    .where(
+      and(
+        eq(authProfiles.id, authProfileId),
+        or(
+          eq(authProfiles.workspaceId, project.workspaceId),
+          eq(authProfiles.projectId, projectId),
+        ),
+      ),
+    )
+    .limit(1);
+  if (!profile) {
+    throw new RequestDomainError(
+      "Authentication profile is not available to this project.",
+      "AUTH_PROFILE_SCOPE_INVALID",
+    );
+  }
+}
+
 async function assertNameAvailable(
   executor: QueryExecutor,
   projectId: string,
@@ -162,10 +212,18 @@ function toField(row: {
   };
 }
 
-function toExecutionDetail(row: {
-  execution: typeof requestExecutions.$inferSelect;
-  response: typeof responseMetadata.$inferSelect | null;
-}): ExecutionDetail {
+function toExecutionDetail(
+  row: {
+    execution: typeof requestExecutions.$inferSelect;
+    response: typeof responseMetadata.$inferSelect | null;
+  },
+  outputs: Array<{
+    name: string;
+    value: string;
+    secret: boolean;
+    expiresAt: Date | null;
+  }> = [],
+): ExecutionDetail {
   const execution = row.execution;
   const response = row.response;
   return {
@@ -180,6 +238,12 @@ function toExecutionDetail(row: {
     startedAt: execution.startedAt?.toISOString() ?? null,
     completedAt: execution.completedAt?.toISOString() ?? null,
     createdAt: execution.createdAt.toISOString(),
+    outputs: outputs.map((output) => ({
+      name: output.name,
+      value: output.secret ? maskSecret(output.value) : output.value,
+      secret: output.secret,
+      expiresAt: output.expiresAt?.toISOString() ?? null,
+    })),
     response: response
       ? {
           statusCode: response.statusCode,
@@ -212,7 +276,30 @@ async function getHistory(
     .where(eq(requestExecutions.requestId, requestId))
     .orderBy(desc(requestExecutions.createdAt))
     .limit(limit);
-  return rows.map(toExecutionDetail);
+  const executionIds = rows.map(({ execution }) => execution.id);
+  const outputRows = executionIds.length
+    ? await executor
+        .select({
+          executionId: runtimeOutputs.executionId,
+          name: requestOutputDefinitions.name,
+          value: runtimeOutputs.value,
+          secret: runtimeOutputs.secret,
+          expiresAt: runtimeOutputs.expiresAt,
+        })
+        .from(runtimeOutputs)
+        .innerJoin(
+          requestOutputDefinitions,
+          eq(requestOutputDefinitions.id, runtimeOutputs.definitionId),
+        )
+        .where(inArray(runtimeOutputs.executionId, executionIds))
+        .orderBy(asc(requestOutputDefinitions.position))
+    : [];
+  return rows.map((row) =>
+    toExecutionDetail(
+      row,
+      outputRows.filter(({ executionId }) => executionId === row.execution.id),
+    ),
+  );
 }
 
 export async function getSavedRequestDetail(
@@ -227,6 +314,8 @@ export async function getSavedRequestDetail(
     bodyRows,
     requestVariableRows,
     environmentRows,
+    outputRows,
+    authProfileRows,
     history,
   ] = await Promise.all([
     database
@@ -258,6 +347,27 @@ export async function getSavedRequestDetail(
       .from(environments)
       .where(eq(environments.workspaceId, project.workspaceId))
       .orderBy(asc(environments.name)),
+    database
+      .select()
+      .from(requestOutputDefinitions)
+      .where(eq(requestOutputDefinitions.requestId, id))
+      .orderBy(asc(requestOutputDefinitions.position)),
+    database
+      .select({
+        id: authProfiles.id,
+        name: authProfiles.name,
+        type: authProfiles.type,
+        workspaceId: authProfiles.workspaceId,
+        projectId: authProfiles.projectId,
+      })
+      .from(authProfiles)
+      .where(
+        or(
+          eq(authProfiles.workspaceId, project.workspaceId),
+          eq(authProfiles.projectId, request.projectId),
+        ),
+      )
+      .orderBy(asc(authProfiles.name)),
     getHistory(database, id),
   ]);
   const body = bodyRows[0];
@@ -266,6 +376,7 @@ export async function getSavedRequestDetail(
     id: request.id,
     projectId: request.projectId,
     folderId: request.folderId,
+    authProfileId: request.authProfileId,
     name: request.name,
     description: request.description,
     method: request.method,
@@ -279,6 +390,18 @@ export async function getSavedRequestDetail(
       value: variable.value,
       secret: variable.secret,
       enabled: variable.enabled,
+    })),
+    outputDefinitions: outputRows.map((output) => ({
+      name: output.name,
+      jsonPath: output.jsonPath,
+      expiresInJsonPath: output.expiresInJsonPath,
+      secret: output.secret,
+    })),
+    availableAuthProfiles: authProfileRows.map((profile) => ({
+      id: profile.id,
+      name: profile.name,
+      type: profile.type,
+      scope: profile.projectId ? ("project" as const) : ("workspace" as const),
     })),
     availableEnvironments: {
       workspace: environmentRows.filter(({ projectId }) => !projectId),
@@ -354,10 +477,19 @@ export async function createSavedRequest(values: {
   });
 }
 
-export async function updateSavedRequest(values: SavedRequestValues) {
+export async function updateSavedRequest(input: SavedRequestValues) {
+  const values = updateSavedRequestSchema.parse({
+    ...input,
+    description: input.description ?? "",
+  });
   const database = getDatabase();
   await database.transaction(async (transaction) => {
     const request = await getRequestRow(transaction, values.id);
+    await assertAuthProfileInProject(
+      transaction,
+      request.projectId,
+      values.authProfileId,
+    );
     await assertFolderInProject(
       transaction,
       request.projectId,
@@ -384,6 +516,7 @@ export async function updateSavedRequest(values: SavedRequestValues) {
       .update(savedRequests)
       .set({
         folderId: values.folderId,
+        authProfileId: values.authProfileId,
         name: values.name,
         description: values.description,
         method: values.method,
@@ -439,6 +572,19 @@ export async function updateSavedRequest(values: SavedRequestValues) {
     }
 
     await transaction
+      .delete(requestOutputDefinitions)
+      .where(eq(requestOutputDefinitions.requestId, values.id));
+    if (values.outputDefinitions.length) {
+      await transaction.insert(requestOutputDefinitions).values(
+        values.outputDefinitions.map((output, index) => ({
+          requestId: values.id,
+          ...output,
+          position: index,
+        })),
+      );
+    }
+
+    await transaction
       .insert(requestBodies)
       .values({ requestId: values.id, ...values.body })
       .onConflictDoUpdate({
@@ -471,6 +617,7 @@ export async function duplicateSavedRequest(id: string) {
       .values({
         projectId: source.projectId,
         folderId: source.folderId,
+        authProfileId: source.authProfileId,
         name,
         description: source.description,
         method: source.method,
@@ -508,6 +655,15 @@ export async function duplicateSavedRequest(id: string) {
           requestId: copy.id,
           scope: "request" as const,
           ...variable,
+        })),
+      );
+    }
+    if (source.outputDefinitions.length) {
+      await transaction.insert(requestOutputDefinitions).values(
+        source.outputDefinitions.map((output, index) => ({
+          requestId: copy.id,
+          ...output,
+          position: index,
         })),
       );
     }
@@ -624,9 +780,19 @@ export async function completeExecution(id: string, result: ExecutionSuccess) {
       .where(eq(requestExecutions.id, id))
       .returning({ projectId: requestExecutions.projectId });
     if (!execution) throw new RequestDomainError("Execution not found.");
-    await transaction
-      .insert(responseMetadata)
-      .values({ executionId: id, ...result });
+    await transaction.insert(responseMetadata).values({
+      executionId: id,
+      statusCode: result.statusCode,
+      statusText: result.statusText,
+      durationMs: result.durationMs,
+      sizeBytes: result.sizeBytes,
+      headers: result.headers,
+      cookies: result.cookies,
+      redirects: result.redirects,
+      bodyPreview: result.bodyPreview,
+      bodyTruncated: result.bodyTruncated,
+      contentType: result.contentType,
+    });
     await trimHistory(transaction, execution.projectId);
   });
 }
@@ -664,5 +830,19 @@ export async function getExecutionDetail(id: string) {
     .limit(1);
   if (!row)
     throw new RequestDomainError("Execution not found.", "EXECUTION_NOT_FOUND");
-  return toExecutionDetail(row);
+  const outputs = await getDatabase()
+    .select({
+      name: requestOutputDefinitions.name,
+      value: runtimeOutputs.value,
+      secret: runtimeOutputs.secret,
+      expiresAt: runtimeOutputs.expiresAt,
+    })
+    .from(runtimeOutputs)
+    .innerJoin(
+      requestOutputDefinitions,
+      eq(requestOutputDefinitions.id, runtimeOutputs.definitionId),
+    )
+    .where(eq(runtimeOutputs.executionId, id))
+    .orderBy(asc(requestOutputDefinitions.position));
+  return toExecutionDetail(row, outputs);
 }

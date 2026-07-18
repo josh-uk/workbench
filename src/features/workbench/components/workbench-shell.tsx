@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { ProjectOverview } from "./project-overview";
 import { RequestEditor } from "./request-editor";
 import { RequestNavigationItem } from "./request-navigation";
+import { AuthProfileManager } from "./auth-profile-manager";
 import { VariableManager } from "./variable-manager";
 import {
   DeleteDialog,
@@ -85,6 +86,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
   const [configurationView, setConfigurationView] = useState<{
+    kind: "variables" | "auth";
     projectId?: string;
   } | null>(null);
   const [notice, setNotice] = useState<{
@@ -349,16 +351,28 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
             <div className="mb-4 space-y-0.5">
               <NavigationItem
                 active={Boolean(
-                  configurationView && !configurationView.projectId,
+                  configurationView?.kind === "variables" &&
+                  !configurationView.projectId,
                 )}
                 icon={Variable}
                 label="Workspace variables"
                 onClick={() => {
                   setSelectedRequestId(null);
-                  setConfigurationView({});
+                  setConfigurationView({ kind: "variables" });
                 }}
               />
-              <NavigationItem icon={KeyRound} label="Authentication profiles" />
+              <NavigationItem
+                active={configurationView?.kind === "auth"}
+                icon={KeyRound}
+                label="Authentication profiles"
+                onClick={() => {
+                  setSelectedRequestId(null);
+                  setConfigurationView({
+                    kind: "auth",
+                    projectId: selectedProject?.id,
+                  });
+                }}
+              />
               <NavigationItem icon={Import} label="Imported definitions" />
               <NavigationItem icon={Workflow} label="Workflows" />
               <NavigationItem icon={History} label="Request history" />
@@ -567,16 +581,35 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
 
         {activeWorkspace ? (
           configurationView ? (
-            <VariableManager
-              key={`${activeWorkspace.id}:${configurationView.projectId ?? "workspace"}`}
-              onClose={() => setConfigurationView(null)}
-              project={
-                configurationView.projectId && selectedProject
-                  ? { id: selectedProject.id, name: selectedProject.name }
-                  : undefined
-              }
-              workspace={{ id: activeWorkspace.id, name: activeWorkspace.name }}
-            />
+            configurationView.kind === "auth" ? (
+              <AuthProfileManager
+                key={`auth:${activeWorkspace.id}:${configurationView.projectId ?? "workspace"}`}
+                onClose={() => setConfigurationView(null)}
+                project={
+                  configurationView.projectId && selectedProject
+                    ? { id: selectedProject.id, name: selectedProject.name }
+                    : undefined
+                }
+                workspace={{
+                  id: activeWorkspace.id,
+                  name: activeWorkspace.name,
+                }}
+              />
+            ) : (
+              <VariableManager
+                key={`variables:${activeWorkspace.id}:${configurationView.projectId ?? "workspace"}`}
+                onClose={() => setConfigurationView(null)}
+                project={
+                  configurationView.projectId && selectedProject
+                    ? { id: selectedProject.id, name: selectedProject.name }
+                    : undefined
+                }
+                workspace={{
+                  id: activeWorkspace.id,
+                  name: activeWorkspace.name,
+                }}
+              />
+            )
           ) : activeRequestId && selectedProject ? (
             <RequestEditor
               folders={selectedProject.folders}
@@ -598,7 +631,10 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
               onManageVariables={(project) => {
                 setSelectedProjectId(project.id);
                 setSelectedRequestId(null);
-                setConfigurationView({ projectId: project.id });
+                setConfigurationView({
+                  kind: "variables",
+                  projectId: project.id,
+                });
               }}
               project={selectedProject}
               setEditor={setEditor}

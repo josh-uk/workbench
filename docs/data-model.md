@@ -1,6 +1,6 @@
 # Data model
 
-The initial Drizzle schema contains 22 relational tables. UUID primary keys make
+The Drizzle schema contains 23 relational tables. UUID primary keys make
 versioned export and restore safer across installations. All primary records
 include timezone-aware creation and update timestamps.
 
@@ -48,12 +48,23 @@ request verifies folder/project ownership and gives it the next position in the
 destination. Project and workspace duplication now deep-copies folder IDs plus
 saved request headers, parameters, bodies, tags, settings, variable scopes,
 environments, and request variables while remapping every environment selection.
+Authentication profiles, project overrides, selected profile IDs, saved token
+request IDs, and output definitions are also deep-copied and remapped. Live
+token caches, runtime output values, and execution history are not copied.
 
 Execution history keeps an immutable redacted request snapshot and an optional
 one-to-one response metadata row. Deleting a saved request sets the history
 reference to `NULL`, preserving project diagnostics. Application-level
 retention keeps the latest 100 executions per project; response body previews
 are bounded separately from the network response-size limit.
+
+Authentication profile configuration uses validated JSON so profile types can
+evolve without a sparse table for every credential field. `auth_token_cache`
+stores the latest access token, optional refresh token, token type, and expiry
+for a profile. Request output definitions are normalized children of saved
+requests; extracted runtime values reference both their definition and source
+execution. Secret values are masked at every browser and history boundary, but
+the local database remains part of the documented trust boundary.
 
 Imported definitions retain the original source document and structured
 operation records. Custom saved requests are separate records, so refreshing an

@@ -42,3 +42,16 @@ Unresolved variables, cycles, invalid selections, and excessive recursion create
 a bounded failed execution record without opening a socket. Temporary runtime
 overrides are accepted only in the preview/execution payload and are not added
 to the saved request.
+
+After variable resolution, the execution service resolves the selected
+authentication profile. Static credentials are injected directly. OAuth
+profiles reuse or refresh their server-side cache, while request-derived
+profiles reuse an unexpired saved-request output or recursively execute the
+configured token request. A request-ID stack rejects authentication dependency
+cycles. Only a masked authentication trace is added to the request snapshot.
+
+After a successful JSON response, output JSONPaths run against a server-only raw
+response buffer. All definitions must extract successfully before output rows
+are written. Secret extracted values are redacted from the response preview and
+headers before response metadata is persisted. Raw response text used for
+extraction is never returned by the API or stored as a separate unredacted field.

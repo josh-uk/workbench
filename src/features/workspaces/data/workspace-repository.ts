@@ -15,12 +15,15 @@ import {
 import { getDatabase } from "@/db/client";
 import {
   applicationSettings,
+  authProfileOverrides,
+  authProfiles,
   environments,
   folders,
   projects,
   requestBodies,
   requestExecutions,
   requestHeaders,
+  requestOutputDefinitions,
   requestQueryParameters,
   savedRequests,
   variables,
@@ -257,12 +260,14 @@ async function copyProjectRequests(
   folderIds: ReadonlyMap<string, string>,
   projectEnvironmentIds: ReadonlyMap<string, string> = new Map(),
   workspaceEnvironmentIds?: ReadonlyMap<string, string>,
+  authProfileIds: ReadonlyMap<string, string> = new Map(),
 ) {
   const sourceRequests = await executor
     .select()
     .from(savedRequests)
     .where(eq(savedRequests.projectId, sourceProjectId))
     .orderBy(asc(savedRequests.position), asc(savedRequests.name));
+  const requestIds = new Map<string, string>();
 
   for (const source of sourceRequests) {
     const settings = parseRequestSettings(source.settings);
@@ -281,6 +286,9 @@ async function copyProjectRequests(
         folderId: source.folderId
           ? (folderIds.get(source.folderId) ?? null)
           : null,
+        authProfileId: source.authProfileId
+          ? (authProfileIds.get(source.authProfileId) ?? source.authProfileId)
+          : null,
         name: source.name,
         description: source.description,
         method: source.method,
@@ -296,30 +304,39 @@ async function copyProjectRequests(
       .returning({ id: savedRequests.id });
     if (!copy) continue;
 
-    const [headers, queryParameters, bodies, requestVariables] =
-      await Promise.all([
-        executor
-          .select()
-          .from(requestHeaders)
-          .where(eq(requestHeaders.requestId, source.id)),
-        executor
-          .select()
-          .from(requestQueryParameters)
-          .where(eq(requestQueryParameters.requestId, source.id)),
-        executor
-          .select()
-          .from(requestBodies)
-          .where(eq(requestBodies.requestId, source.id)),
-        executor
-          .select()
-          .from(variables)
-          .where(
-            and(
-              eq(variables.scope, "request"),
-              eq(variables.requestId, source.id),
-            ),
+    const [
+      headers,
+      queryParameters,
+      bodies,
+      requestVariables,
+      outputDefinitions,
+    ] = await Promise.all([
+      executor
+        .select()
+        .from(requestHeaders)
+        .where(eq(requestHeaders.requestId, source.id)),
+      executor
+        .select()
+        .from(requestQueryParameters)
+        .where(eq(requestQueryParameters.requestId, source.id)),
+      executor
+        .select()
+        .from(requestBodies)
+        .where(eq(requestBodies.requestId, source.id)),
+      executor
+        .select()
+        .from(variables)
+        .where(
+          and(
+            eq(variables.scope, "request"),
+            eq(variables.requestId, source.id),
           ),
-      ]);
+        ),
+      executor
+        .select()
+        .from(requestOutputDefinitions)
+        .where(eq(requestOutputDefinitions.requestId, source.id)),
+    ]);
     if (headers.length) {
       await executor.insert(requestHeaders).values(
         headers.map((header) => ({
@@ -365,7 +382,21 @@ async function copyProjectRequests(
         })),
       );
     }
+    if (outputDefinitions.length) {
+      await executor.insert(requestOutputDefinitions).values(
+        outputDefinitions.map((output) => ({
+          requestId: copy.id,
+          name: output.name,
+          jsonPath: output.jsonPath,
+          expiresInJsonPath: output.expiresInJsonPath,
+          secret: output.secret,
+          position: output.position,
+        })),
+      );
+    }
+    requestIds.set(source.id, copy.id);
   }
+  return requestIds;
 }
 
 async function copyEnvironmentVariables(
@@ -506,6 +537,97 @@ async function copyProjectConfiguration(
     );
   }
   return environmentIds;
+}
+
+interface CopiedAuthProfiles {
+  ids: Map<string, string>;
+  tokenRequests: Map<string, string | null>;
+}
+
+async function copyAuthProfiles(
+  executor: QueryExecutor,
+  input:
+    | {
+        sourceWorkspaceId: string;
+        targetWorkspaceId: string;
+        sourceProjectId?: never;
+        targetProjectId?: never;
+      }
+    | {
+        sourceProjectId: string;
+        targetProjectId: string;
+        sourceWorkspaceId?: never;
+        targetWorkspaceId?: never;
+      },
+): Promise<CopiedAuthProfiles> {
+  const sourceProfiles = await executor
+    .select()
+    .from(authProfiles)
+    .where(
+      "sourceWorkspaceId" in input
+        ? eq(authProfiles.workspaceId, input.sourceWorkspaceId as string)
+        : eq(authProfiles.projectId, input.sourceProjectId as string),
+    )
+    .orderBy(asc(authProfiles.name));
+  const ids = new Map<string, string>();
+  const tokenRequests = new Map<string, string | null>();
+  for (const source of sourceProfiles) {
+    const [copy] = await executor
+      .insert(authProfiles)
+      .values({
+        workspaceId:
+          "targetWorkspaceId" in input
+            ? (input.targetWorkspaceId as string)
+            : null,
+        projectId:
+          "targetProjectId" in input ? (input.targetProjectId as string) : null,
+        tokenRequestId: null,
+        name: source.name,
+        type: source.type,
+        configuration: source.configuration,
+      })
+      .returning({ id: authProfiles.id });
+    if (!copy) continue;
+    ids.set(source.id, copy.id);
+    tokenRequests.set(copy.id, source.tokenRequestId);
+  }
+  return { ids, tokenRequests };
+}
+
+async function remapAuthTokenRequests(
+  executor: QueryExecutor,
+  profiles: CopiedAuthProfiles,
+  requestIds: ReadonlyMap<string, string>,
+) {
+  for (const [profileId, sourceRequestId] of profiles.tokenRequests) {
+    if (!sourceRequestId) continue;
+    await executor
+      .update(authProfiles)
+      .set({ tokenRequestId: requestIds.get(sourceRequestId) ?? null })
+      .where(eq(authProfiles.id, profileId));
+  }
+}
+
+async function copyAuthOverrides(
+  executor: QueryExecutor,
+  sourceProjectId: string,
+  targetProjectId: string,
+  profileIds: ReadonlyMap<string, string>,
+) {
+  const overrides = await executor
+    .select()
+    .from(authProfileOverrides)
+    .where(eq(authProfileOverrides.projectId, sourceProjectId));
+  if (overrides.length) {
+    await executor.insert(authProfileOverrides).values(
+      overrides.map((override) => ({
+        authProfileId:
+          profileIds.get(override.authProfileId) ?? override.authProfileId,
+        projectId: targetProjectId,
+        configuration: override.configuration,
+      })),
+    );
+  }
 }
 
 export async function getWorkbenchNavigation(): Promise<WorkbenchNavigation> {
@@ -712,6 +834,11 @@ export async function duplicateWorkspace(id: string) {
       source.id,
       workspace.id,
     );
+    const workspaceAuthProfiles = await copyAuthProfiles(transaction, {
+      sourceWorkspaceId: source.id,
+      targetWorkspaceId: workspace.id,
+    });
+    const workspaceRequestIds = new Map<string, string>();
 
     const sourceProjects = await transaction
       .select()
@@ -743,16 +870,45 @@ export async function duplicateWorkspace(id: string) {
           sourceProject.id,
           project.id,
         );
-        await copyProjectRequests(
+        const projectAuthProfiles = await copyAuthProfiles(transaction, {
+          sourceProjectId: sourceProject.id,
+          targetProjectId: project.id,
+        });
+        const authProfileIds = new Map([
+          ...workspaceAuthProfiles.ids,
+          ...projectAuthProfiles.ids,
+        ]);
+        const requestIds = await copyProjectRequests(
           transaction,
           sourceProject.id,
           project.id,
           folderIds,
           projectEnvironmentIds,
           workspaceEnvironmentIds,
+          authProfileIds,
+        );
+        requestIds.forEach((targetId, sourceId) =>
+          workspaceRequestIds.set(sourceId, targetId),
+        );
+        await remapAuthTokenRequests(
+          transaction,
+          projectAuthProfiles,
+          requestIds,
+        );
+        await copyAuthOverrides(
+          transaction,
+          sourceProject.id,
+          project.id,
+          workspaceAuthProfiles.ids,
         );
       }
     }
+
+    await remapAuthTokenRequests(
+      transaction,
+      workspaceAuthProfiles,
+      workspaceRequestIds,
+    );
 
     await setActiveWorkspace(transaction, workspace.id);
     return workspace;
@@ -856,13 +1012,21 @@ export async function duplicateProject(id: string) {
       project.id,
       source.workspaceId,
     );
-    await copyProjectRequests(
+    const projectAuthProfiles = await copyAuthProfiles(transaction, {
+      sourceProjectId: source.id,
+      targetProjectId: project.id,
+    });
+    const requestIds = await copyProjectRequests(
       transaction,
       source.id,
       project.id,
       folderIds,
       projectEnvironmentIds,
+      undefined,
+      projectAuthProfiles.ids,
     );
+    await remapAuthTokenRequests(transaction, projectAuthProfiles, requestIds);
+    await copyAuthOverrides(transaction, source.id, project.id, new Map());
     return project;
   });
 }

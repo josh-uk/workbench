@@ -6,6 +6,7 @@ import {
   jsonb,
   pgTable,
   text,
+  timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -108,10 +109,42 @@ export const authProfiles = pgTable(
       table.workspaceId,
       table.projectId,
     ),
+    uniqueIndex("auth_profiles_workspace_name_unique").on(
+      table.workspaceId,
+      table.name,
+    ),
+    uniqueIndex("auth_profiles_project_name_unique").on(
+      table.projectId,
+      table.name,
+    ),
     check("auth_profiles_name_not_blank", sql`length(trim(${table.name})) > 0`),
     check(
       "auth_profiles_one_owner",
       sql`num_nonnulls(${table.workspaceId}, ${table.projectId}) = 1`,
+    ),
+  ],
+);
+
+export const authTokenCache = pgTable(
+  "auth_token_cache",
+  {
+    id: primaryId(),
+    authProfileId: uuid("auth_profile_id")
+      .notNull()
+      .references(() => authProfiles.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    accessToken: text("access_token").notNull(),
+    refreshToken: text("refresh_token"),
+    tokenType: text("token_type").notNull().default("Bearer"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    ...timestamps(),
+  },
+  (table) => [
+    uniqueIndex("auth_token_cache_profile_project_unique").on(
+      table.authProfileId,
+      table.projectId,
     ),
   ],
 );

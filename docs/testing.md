@@ -34,6 +34,14 @@ and cleanup, and deep-copy remapping. Component and Chromium flows verify masked
 previews, temporary overrides, environment selection, real execution, and reload
 persistence without exposing the secret echoed by the mock server.
 
+Authentication tests cover bearer, Basic, API-key, OAuth, and request-derived
+injection; JSONPath behavior; expiry calculation; cache reuse; refresh-token
+regeneration; output persistence; generated-variable reuse; deep-copy ID
+remapping; and secret redaction. The Chromium flow creates a saved token request,
+publishes a secret expiring output, selects it through a request-derived profile,
+sends an authenticated request twice, and verifies that the token request ran
+once without its value appearing in the UI or screenshots.
+
 CI runs formatting, linting, strict type checking, unit coverage, component
 tests, migration checks, integration tests, a production build, Playwright,
 container build, and a high-severity dependency audit. Failure artifacts include

@@ -44,6 +44,12 @@ vi.mock("@/features/variables/actions", () => ({
   updateEnvironmentAction: vi.fn(),
 }));
 
+vi.mock("@/features/authentication/actions", () => ({
+  deleteAuthProfileAction: vi.fn(),
+  saveAuthOverrideAction: vi.fn(),
+  saveAuthProfileAction: vi.fn(),
+}));
+
 describe("WorkbenchShell", () => {
   it("guides an empty installation into workspace creation", async () => {
     const user = userEvent.setup();
