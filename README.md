@@ -19,6 +19,7 @@ their API collections to a Git repository or a hosted account.
 - Resolve scoped environments and variables with visible provenance.
 - Reuse authentication and extracted request outputs across requests.
 - Preserve OpenAPI definitions as refreshable first-class records.
+- Import HTTPie, Postman, cURL, and raw HTTP sources through one preview flow.
 - Keep application data in a local PostgreSQL database with documented export
   and backup formats.
 
@@ -50,6 +51,11 @@ snapshots, downloads, and history. OpenAPI 3.x JSON/YAML imports provide a
 read-only preview, operation/tag selection, executable generated requests,
 security and server-variable mapping, selective refresh diffs, and explicit
 custom-request protection.
+Portable collection imports detect HTTPie 1.x workspace, collection, request,
+and environment exports; HTTPie CLI and cURL commands; Postman 2.x collections
+and environments; and raw HTTP requests. Every source is previewed with its
+target, supported records, warnings, and naming conflicts before a transactional
+replace, merge, rename, or skip operation.
 Documentation screenshots are captured from the real application with generic
 data and must never contain secrets.
 
@@ -150,7 +156,9 @@ Next.js application
 See [Architecture](docs/architecture.md), [Data model](docs/data-model.md),
 [Workspace management](docs/workspace-management.md),
 [Request execution](docs/request-execution.md), and
-[OpenAPI import](docs/openapi-import.md).
+[OpenAPI import](docs/openapi-import.md),
+[Importer architecture](docs/importers.md), and
+[HTTPie import](docs/httpie-import.md).
 
 ## Testing and security
 

@@ -62,6 +62,15 @@ vi.mock("@/features/openapi/actions", () => ({
   previewOpenApiRefreshAction: vi.fn(),
 }));
 
+vi.mock("@/features/imports/actions", () => ({
+  executeCollectionImportAction: vi.fn(),
+  listCollectionImportsAction: vi.fn().mockResolvedValue({
+    ok: true,
+    data: [],
+  }),
+  previewCollectionImportAction: vi.fn(),
+}));
+
 describe("WorkbenchShell", () => {
   it("guides an empty installation into workspace creation", async () => {
     const user = userEvent.setup();

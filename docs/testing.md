@@ -51,6 +51,15 @@ blocking, and source size/protocol limits. The Chromium flow imports a pasted
 OpenAPI 3.1 operation and executes the generated request against the local mock
 API.
 
+Collection-import unit tests use sanitized realistic HTTPie data and cover
+registry detection, HTTPie Desktop/CLI, Postman, cURL, raw HTTP, safe shell
+tokenization, hostile JSON, URL/query mapping, auth, bodies, and file-reference
+warnings. PostgreSQL tests cover target/conflict preview, complete HTTPie
+persistence, source metadata, OpenAPI/generic list isolation, environments,
+secret variables, auth profiles, and replace/merge/rename/skip. The component
+test approves a preview plan, and Chromium imports then executes an HTTPie
+request against the local mock API.
+
 CI runs formatting, linting, strict type checking, unit coverage, component
 tests, migration checks, integration tests, a production build, Playwright,
 container build, and a high-severity dependency audit. Failure artifacts include

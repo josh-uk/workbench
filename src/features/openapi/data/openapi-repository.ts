@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, isNull, max, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, max, ne, or, sql } from "drizzle-orm";
 
 import { getDatabase } from "@/db/client";
 import {
@@ -47,6 +47,8 @@ type ImportOptions = z.infer<typeof openApiImportOptionsSchema>;
 type StoredImportOptions = ImportOptions & {
   serverVariableValue?: string | null;
 };
+
+const openApiFormats = ["openapi_json", "openapi_yaml"] as const;
 
 interface StoredDefinitionMetadata {
   servers: ParsedOpenApiDefinition["servers"];
@@ -101,7 +103,12 @@ async function getDefinition(executor: QueryExecutor, id: string) {
   const [definition] = await executor
     .select()
     .from(importedDefinitions)
-    .where(eq(importedDefinitions.id, id))
+    .where(
+      and(
+        eq(importedDefinitions.id, id),
+        inArray(importedDefinitions.format, openApiFormats),
+      ),
+    )
     .limit(1);
   if (!definition) {
     throw new OpenApiDomainError(
@@ -850,7 +857,12 @@ export async function previewOpenApiImport(
       database
         .select()
         .from(importedDefinitions)
-        .where(eq(importedDefinitions.projectId, projectId)),
+        .where(
+          and(
+            eq(importedDefinitions.projectId, projectId),
+            inArray(importedDefinitions.format, openApiFormats),
+          ),
+        ),
     ]);
   const folderByName = new Map(
     folderRows.map((folder) => [folder.name.toLocaleLowerCase(), folder.id]),
@@ -935,6 +947,7 @@ export async function executeOpenApiImport(input: {
       .where(
         and(
           eq(importedDefinitions.projectId, project.id),
+          inArray(importedDefinitions.format, openApiFormats),
           or(
             eq(importedDefinitions.sourceHash, input.parsed.sourceHash),
             sql`lower(${importedDefinitions.name}) = lower(${input.options.name})`,
@@ -1024,7 +1037,12 @@ export async function listImportedDefinitions(
     database
       .select()
       .from(importedDefinitions)
-      .where(eq(importedDefinitions.projectId, projectId))
+      .where(
+        and(
+          eq(importedDefinitions.projectId, projectId),
+          inArray(importedDefinitions.format, openApiFormats),
+        ),
+      )
       .orderBy(asc(importedDefinitions.name)),
     database
       .select()
@@ -1033,7 +1051,12 @@ export async function listImportedDefinitions(
         importedDefinitions,
         eq(importedDefinitions.id, importedOperations.definitionId),
       )
-      .where(eq(importedDefinitions.projectId, projectId)),
+      .where(
+        and(
+          eq(importedDefinitions.projectId, projectId),
+          inArray(importedDefinitions.format, openApiFormats),
+        ),
+      ),
   ]);
   return definitions.map((definition) => {
     const metadata = readMetadata(definition.metadata);

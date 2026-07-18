@@ -52,6 +52,15 @@ cloud metadata targets, and unsafe redirects remain blocked even when trusted
 local networking is enabled. Posted preview content is not trusted as a way to
 bypass validation of its declared source URL.
 
+Portable collection imports accept at most 2 MiB and bound JSON depth, node
+count, request count, field count, variables, configuration records, URL length,
+and body size. Prototype-related JSON keys are rejected. cURL and HTTPie CLI
+input is parsed by a non-executing tokenizer: shell pipes, redirects, command
+substitution, multiple commands, and cURL config files are rejected. Embedded
+file references are recorded as unsupported metadata and never read from the
+host filesystem. Imports are reparsed at execution and selected source keys must
+still match the approved preview.
+
 Variable values are stored only in the local PostgreSQL installation so they
 can be reused. The local trust boundary therefore includes database access.
 Marked values are password-masked in the normal editor and never returned in
