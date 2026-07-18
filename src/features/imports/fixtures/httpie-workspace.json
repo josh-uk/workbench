@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "format": "httpie",
+    "version": "1.0.0",
+    "contentType": "workspace"
+  },
+  "entry": {
+    "id": "workspace-realistic",
+    "name": "Payments workspace",
+    "collections": [
+      {
+        "id": "collection-payments",
+        "name": "Payments",
+        "auth": {
+          "type": "bearer",
+          "credentials": {
+            "username": "",
+            "password": "{{accessToken}}"
+          }
+        },
+        "requests": [
+          {
+            "id": "request-list-payments",
+            "name": "List payments",
+            "method": "GET",
+            "url": "https://api.example.test/v1/payments",
+            "auth": { "type": "inherited" },
+            "headers": [
+              { "name": "Accept", "value": "application/json", "enabled": true }
+            ],
+            "queryParams": [
+              { "name": "status", "value": "pending", "enabled": true }
+            ],
+            "pathParams": [],
+            "body": { "type": "none" }
+          },
+          {
+            "id": "request-refund",
+            "name": "Create refund",
+            "method": "POST",
+            "url": "https://api.example.test/v1/payments/:paymentId/refunds",
+            "auth": {
+              "type": "apiKey",
+              "target": "headers",
+              "credentials": {
+                "username": "X-API-Key",
+                "password": "{{apiKey}}"
+              }
+            },
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              }
+            ],
+            "queryParams": [],
+            "pathParams": [
+              { "name": "paymentId", "value": "pay_123", "enabled": true }
+            ],
+            "body": {
+              "type": "text",
+              "text": {
+                "format": "application/json",
+                "value": "{\"amount\":1250,\"reason\":\"duplicate\"}"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "environments": [
+      {
+        "id": "environment-staging",
+        "name": "Staging",
+        "isDefault": true,
+        "isLocalOnly": false,
+        "variables": [
+          {
+            "id": "variable-base",
+            "name": "baseUrl",
+            "value": "https://api.example.test",
+            "isSecret": false
+          },
+          {
+            "id": "variable-token",
+            "name": "accessToken",
+            "value": "secret-token",
+            "isSecret": true
+          }
+        ]
+      }
+    ],
+    "drafts": []
+  }
+}

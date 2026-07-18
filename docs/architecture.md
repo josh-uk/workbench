@@ -69,6 +69,15 @@ DNS and redirect policy used by execution. Refresh diffs compare stored
 operation and generated-request hashes, allowing selective changes while
 preserving editor-customized or explicitly detached requests.
 
+Portable collection import follows the same trust boundary through a registry
+of source adapters. Each adapter performs synchronous, side-effect-free
+detection and maps its format into the shared plan. Preview queries the target
+hierarchy and reports conflicts without writing. Execution reparses the posted
+source, verifies the selected source keys, and transactionally writes nested
+folders, environments, variables, auth profiles, complete saved requests,
+source links, and the audit run. The editor sees only normal saved-request data;
+format-specific metadata remains on the imported operation.
+
 ## Data flow
 
 1. The browser submits validated user intent to a server endpoint.

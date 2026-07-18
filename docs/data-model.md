@@ -76,6 +76,14 @@ set, summary, and warnings for initial imports and refreshes. Detaching a reques
 clears its operation link without deleting either record, so refreshing an
 import cannot silently overwrite a custom request.
 
+The same import tables store portable collection sources with one of the
+`httpie`, `postman`, `curl`, or `raw_http` formats. Their imported-operation JSON
+contains the normalized portable request plus a bounded `sourceMetadata` map.
+The generated request still uses the standard normalized request, header, query,
+body, variable, settings, environment, and authentication tables. This keeps
+conflict handling and source traceability without coupling normal editing or
+execution to HTTPie or Postman schemas.
+
 Response metadata stores bounded previews and structured headers, timing, and
 redirect data. Large binary bodies will use explicit retention rules rather than
 being stored indefinitely in the main tables.

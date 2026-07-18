@@ -48,6 +48,7 @@ import type { WorkbenchNavigation } from "@/features/workspaces/domain";
 import { cn } from "@/lib/utils";
 
 import { ProjectOverview } from "./project-overview";
+import { CollectionImportManager } from "./collection-import-manager";
 import { OpenApiManager } from "./openapi-manager";
 import { RequestEditor } from "./request-editor";
 import { RequestNavigationItem } from "./request-navigation";
@@ -87,7 +88,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
   const [configurationView, setConfigurationView] = useState<{
-    kind: "variables" | "auth" | "imports";
+    kind: "variables" | "auth" | "imports" | "collection_imports";
     projectId?: string;
   } | null>(null);
   const [notice, setNotice] = useState<{
@@ -386,6 +387,18 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                   });
                 }}
               />
+              <NavigationItem
+                active={configurationView?.kind === "collection_imports"}
+                icon={Import}
+                label="Collection imports"
+                onClick={() => {
+                  setSelectedRequestId(null);
+                  setConfigurationView({
+                    kind: "collection_imports",
+                    projectId: selectedProject?.id,
+                  });
+                }}
+              />
               <NavigationItem icon={Workflow} label="Workflows" />
               <NavigationItem icon={History} label="Request history" />
             </div>
@@ -623,6 +636,25 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                 <main className="grid min-w-0 flex-1 place-items-center p-8 text-center">
                   <p className="text-sm text-muted">
                     Create a project before importing an OpenAPI definition.
+                  </p>
+                </main>
+              )
+            ) : configurationView.kind === "collection_imports" ? (
+              selectedProject ? (
+                <CollectionImportManager
+                  key={`collection-imports:${selectedProject.id}`}
+                  onClose={() => setConfigurationView(null)}
+                  onNotice={(tone, text) => setNotice({ tone, text })}
+                  onRefresh={() => router.refresh()}
+                  project={{
+                    id: selectedProject.id,
+                    name: selectedProject.name,
+                  }}
+                />
+              ) : (
+                <main className="grid min-w-0 flex-1 place-items-center p-8 text-center">
+                  <p className="text-sm text-muted">
+                    Create a project before importing requests and collections.
                   </p>
                 </main>
               )

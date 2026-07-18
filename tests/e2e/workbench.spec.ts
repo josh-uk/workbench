@@ -9,6 +9,7 @@ const tokenRequestName = `Generate OAuth token ${runId}`;
 const authProfileName = `Derived OAuth ${runId}`;
 const protectedRequestName = `Protected fact ${runId}`;
 const importedRequestName = `Imported facts ${runId}`;
+const httpieRequestName = `HTTPie facts ${runId}`;
 
 test.describe.serial("workspace and project management", () => {
   test("creates and persists a workspace, project, and nested folders", async ({
@@ -316,5 +317,63 @@ test.describe.serial("workspace and project management", () => {
     await expect(page.getByText("200 OK")).toBeVisible();
     await expect(page.getByText(/Honey never spoils/)).toBeVisible();
     await expect(page.getByText(/source=openapi/)).toBeVisible();
+  });
+
+  test("imports an HTTPie collection request and executes it", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Collection imports" }).click();
+    await page.getByRole("button", { name: "Import source" }).first().click();
+    await page.getByLabel("Import source").fill(
+      JSON.stringify({
+        meta: {
+          format: "httpie",
+          version: "1.0.0",
+          contentType: "collection",
+        },
+        entry: {
+          id: `httpie-collection-${runId}`,
+          name: `HTTPie E2E ${runId}`,
+          auth: { type: "none" },
+          requests: [
+            {
+              id: `httpie-request-${runId}`,
+              name: httpieRequestName,
+              method: "GET",
+              url: "http://127.0.0.1:3201/facts",
+              auth: { type: "inherited" },
+              headers: [
+                { name: "Accept", value: "application/json", enabled: true },
+              ],
+              queryParams: [{ name: "source", value: "httpie", enabled: true }],
+              pathParams: [],
+              body: { type: "none" },
+            },
+          ],
+        },
+      }),
+    );
+    await page.getByRole("button", { name: "Preview import" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: `HTTPie E2E ${runId}` }),
+    ).toBeVisible();
+    await expect(page.getByText(httpieRequestName)).toBeVisible();
+    await page.getByText("Allow private/local request targets").click();
+    await page.getByRole("button", { name: "Import 1 request" }).click();
+    await expect(page.getByText("Imported 1 request.")).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Close collection imports" })
+      .click();
+    await page.getByText(httpieRequestName, { exact: true }).click();
+    await expect(page.getByLabel("Request URL")).toHaveValue(
+      "http://127.0.0.1:3201/facts",
+    );
+    await page.getByRole("button", { name: /Send/ }).click();
+    await expect(page.getByText("200 OK")).toBeVisible();
+    await expect(page.getByText(/Honey never spoils/)).toBeVisible();
+    await expect(page.getByText(/source=httpie/)).toBeVisible();
   });
 });
