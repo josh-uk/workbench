@@ -18,6 +18,8 @@ Workflow definitions are edited from the project-level **Workflows** view.
 Steps can be added, removed, reordered, disabled, renamed, and configured with a
 failure policy. Saving validates that every request belongs to the same project.
 
+![A successful two-step workflow](images/phase-8-workflows.png)
+
 ## Assertions
 
 Assertions can be attached to a saved request or to an individual workflow
