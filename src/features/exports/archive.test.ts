@@ -161,7 +161,7 @@ describe("versioned export archives", () => {
     expect(parsed.data.tables.variables[0]?.value).toBe("do-not-leak");
   });
 
-  it("rejects unsupported versions, undeclared paths, and damaged data", async () => {
+  it("rejects unsupported versions, counts, paths, and damaged data", async () => {
     const { result, workspaceId } = tables();
     const { archive } = await createExportArchive({
       tables: result,
@@ -190,13 +190,6 @@ describe("versioned export archives", () => {
       message: "Archive path is not allowed: ../escape.txt",
     });
 
-    const oversizedFiles = unzipSync(archive);
-    oversizedFiles["data.json"] = new Uint8Array(MAX_EXPORT_FILE_BYTES + 1);
-    const oversized = zipSync(oversizedFiles, { level: 6 });
-    await expect(parseExportArchive(oversized)).rejects.toMatchObject({
-      message: "An archive file is too large.",
-    });
-
     const damaged = mutateZipJson(archive, "data.json", (data) => {
       data.tables = {};
     });
@@ -204,4 +197,14 @@ describe("versioned export archives", () => {
       ExportDomainError,
     );
   });
+
+  it("rejects files that expand past the per-file limit", async () => {
+    const oversized = zipSync(
+      { "data.json": new Uint8Array(MAX_EXPORT_FILE_BYTES + 1) },
+      { level: 1 },
+    );
+    await expect(parseExportArchive(oversized)).rejects.toMatchObject({
+      message: "An archive file is too large.",
+    });
+  }, 20_000);
 });
