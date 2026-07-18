@@ -30,6 +30,7 @@ databaseDescribe("ordered workflow execution", () => {
   let server: http.Server;
   let baseUrl: string;
   let tailRequests = 0;
+  let slowRequestStarted: (() => void) | null = null;
 
   beforeAll(async () => {
     client = postgres(databaseUrl as string, { max: 1, prepare: false });
@@ -54,6 +55,8 @@ databaseDescribe("ordered workflow execution", () => {
         return;
       }
       if (request.url === "/slow") {
+        slowRequestStarted?.();
+        slowRequestStarted = null;
         setTimeout(() => {
           response.end(JSON.stringify({ late: true }));
         }, 250);
@@ -74,6 +77,7 @@ databaseDescribe("ordered workflow execution", () => {
 
   beforeEach(async () => {
     tailRequests = 0;
+    slowRequestStarted = null;
     await client`truncate table workspaces, application_settings restart identity cascade`;
   });
 
@@ -340,13 +344,18 @@ databaseDescribe("ordered workflow execution", () => {
       ],
     });
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), 20);
+    const requestStarted = new Promise<void>((resolve) => {
+      slowRequestStarted = resolve;
+    });
 
-    const report = await runWorkflow({
+    const running = runWorkflow({
       workflowId: workflow.id,
       workflowRunId: crypto.randomUUID(),
       signal: controller.signal,
     });
+    await requestStarted;
+    controller.abort();
+    const report = await running;
 
     expect(report.status).toBe("cancelled");
     expect(report.steps[0]).toMatchObject({

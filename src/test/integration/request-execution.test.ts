@@ -160,4 +160,17 @@ integrationDescribe("server-side HTTP execution", () => {
       }),
     );
   });
+
+  it("rejects a request whose signal was already cancelled", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      executeHttpRequest(plan("/slow"), controller.signal),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<RequestDomainError>>({
+        code: "REQUEST_CANCELLED",
+      }),
+    );
+  });
 });
