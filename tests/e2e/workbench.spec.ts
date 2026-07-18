@@ -10,6 +10,9 @@ const authProfileName = `Derived OAuth ${runId}`;
 const protectedRequestName = `Protected fact ${runId}`;
 const importedRequestName = `Imported facts ${runId}`;
 const httpieRequestName = `HTTPie facts ${runId}`;
+const workflowSeedName = `Workflow seed ${runId}`;
+const workflowConsumerName = `Workflow consumer ${runId}`;
+const workflowName = `Output workflow ${runId}`;
 
 test.describe.serial("workspace and project management", () => {
   test("creates and persists a workspace, project, and nested folders", async ({
@@ -89,7 +92,10 @@ test.describe.serial("workspace and project management", () => {
     page,
   }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "New request" }).click();
+    await page.getByRole("button", { name: "Core API", exact: true }).click();
+    await page
+      .getByRole("button", { name: "New request", exact: true })
+      .click();
     await expect(page.getByLabel("Request URL")).toBeVisible();
     await page.getByLabel("Request name").fill(requestName);
     await page.getByLabel("Request URL").fill("http://127.0.0.1:3201/facts");
@@ -205,7 +211,10 @@ test.describe.serial("workspace and project management", () => {
     page,
   }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "New request" }).click();
+    await page.getByRole("button", { name: "Core API", exact: true }).click();
+    await page
+      .getByRole("button", { name: "New request", exact: true })
+      .click();
     await page.getByLabel("Request name").fill(tokenRequestName);
     await page
       .getByLabel("Request URL")
@@ -241,7 +250,10 @@ test.describe.serial("workspace and project management", () => {
       .getByRole("button", { name: "Close authentication profiles" })
       .click();
 
-    await page.getByRole("button", { name: "New request" }).click();
+    await page.getByRole("button", { name: "Core API", exact: true }).click();
+    await page
+      .getByRole("button", { name: "New request", exact: true })
+      .click();
     await page.getByLabel("Request name").fill(protectedRequestName);
     await page
       .getByLabel("Request URL")
@@ -375,5 +387,82 @@ test.describe.serial("workspace and project management", () => {
     await expect(page.getByText("200 OK")).toBeVisible();
     await expect(page.getByText(/Honey never spoils/)).toBeVisible();
     await expect(page.getByText(/source=httpie/)).toBeVisible();
+  });
+
+  test("runs an asserted workflow and passes an output to the next step", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Core API", exact: true }).click();
+    await page
+      .getByRole("button", { name: "New request", exact: true })
+      .click();
+    await page.getByLabel("Request name").fill(workflowSeedName);
+    await page
+      .getByLabel("Request URL")
+      .fill("http://127.0.0.1:3201/workflow-seed");
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: "Settings" })
+      .click();
+    await page.getByLabel("Allow trusted private/local network").check();
+    await page.getByRole("button", { name: "Outputs" }).click();
+    await page.getByRole("button", { name: "Add output" }).click();
+    await page.getByLabel("Output 1 name").fill("workflowValue");
+    await page.getByLabel("Output 1 JSONPath").fill("$.workflow_token");
+    await page.getByRole("button", { name: "Tests" }).click();
+    await page.getByRole("button", { name: "Add assertion" }).click();
+    await page.getByLabel("Assertion 1 name").fill("Seed returns 200");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Request saved.")).toBeVisible();
+
+    await page.getByRole("button", { name: "Core API", exact: true }).click();
+    await page
+      .getByRole("button", { name: "New request", exact: true })
+      .click();
+    await page.getByLabel("Request name").fill(workflowConsumerName);
+    await page
+      .getByLabel("Request URL")
+      .fill("http://127.0.0.1:3201/workflow-consume/{{workflowValue}}");
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: "Settings" })
+      .click();
+    await page.getByLabel("Allow trusted private/local network").check();
+    await page.getByRole("button", { name: "Tests" }).click();
+    await page.getByRole("button", { name: "Add assertion" }).click();
+    await page.getByLabel("Assertion 1 type").selectOption("jsonpath_equals");
+    await page.getByLabel("Assertion 1 name").fill("Consumer received output");
+    await page.getByLabel("JSONPath", { exact: true }).fill("$.consumed");
+    await page
+      .getByLabel("Expected JSONPath value", { exact: true })
+      .fill("true");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Request saved.")).toBeVisible();
+
+    await page.getByRole("button", { name: "Workflows" }).click();
+    await page.getByRole("button", { name: "New workflow" }).click();
+    await page.getByLabel("Workflow name").fill(workflowName);
+    await page
+      .getByLabel("Saved request")
+      .first()
+      .selectOption({ label: `GET · ${workflowSeedName}` });
+    await page.getByRole("button", { name: "Add step" }).click();
+    await page
+      .getByLabel("Saved request")
+      .nth(1)
+      .selectOption({ label: `GET · ${workflowConsumerName}` });
+    await page.getByRole("button", { name: "Run workflow" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Execution report" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("2 passed · 0 failed · 2/2 attempted"),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Published for later steps: workflowValue"),
+    ).toBeVisible();
+    await expect(page.getByText(/Consumer received output/)).toBeVisible();
   });
 });

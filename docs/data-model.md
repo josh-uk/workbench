@@ -1,6 +1,6 @@
 # Data model
 
-The Drizzle schema contains 23 relational tables. UUID primary keys make
+The Drizzle schema contains 25 relational tables. UUID primary keys make
 versioned export and restore safer across installations. All primary records
 include timezone-aware creation and update timestamps.
 
@@ -17,6 +17,7 @@ Workspace
     ├── Environments and variable overrides
     ├── Imported definitions and operations
     ├── Workflows and assertions
+    ├── Workflow runs and step reports
     └── Request executions and outputs
 ```
 
@@ -51,6 +52,8 @@ environments, and request variables while remapping every environment selection.
 Authentication profiles, project overrides, selected profile IDs, saved token
 request IDs, and output definitions are also deep-copied and remapped. Live
 token caches, runtime output values, and execution history are not copied.
+Request assertions, workflows, ordered steps, step assertions, and request
+references are deep-copied and remapped; historical workflow runs are not.
 
 Execution history keeps an immutable redacted request snapshot and an optional
 one-to-one response metadata row. Deleting a saved request sets the history
@@ -87,6 +90,15 @@ execution to HTTPie or Postman schemas.
 Response metadata stores bounded previews and structured headers, timing, and
 redirect data. Large binary bodies will use explicit retention rules rather than
 being stored indefinitely in the main tables.
+
+Assertions have exactly one owner: a saved request or a workflow step. Their
+typed configuration is JSON, but names, type, position, enabled state, and
+ownership remain relational. Request executions store the evaluated result list
+and aggregate pass state. `workflow_runs` snapshots the workflow name, status,
+summary, and timestamps; `workflow_step_runs` retains ordered status, failure
+policy, assertion results, published output names, errors, and an optional link
+to the underlying request execution. Deleting or editing a workflow does not
+delete its historical run report.
 
 The generated SQL migration under `drizzle/` is the source of truth for deployed
 schema history. Migrations are forward-only after merging to `master`.

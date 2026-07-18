@@ -1,5 +1,7 @@
 import "server-only";
 
+import { evaluateAssertions } from "@/core/assertions/evaluator";
+import { getExecutionAssertions } from "@/features/assertions/data/assertion-repository";
 import { resolveAuthentication } from "@/features/authentication/resolution";
 import { AuthDomainError } from "@/features/authentication/domain";
 import {
@@ -76,6 +78,7 @@ export async function executeSavedRequest(input: {
   executionId: string;
   runtimeVariables?: VariableValue[];
   signal: AbortSignal;
+  workflowStepId?: string;
   stack?: string[];
 }) {
   const stack = input.stack ?? [];
@@ -237,9 +240,14 @@ export async function executeSavedRequest(input: {
       executionId: input.executionId,
       rawBody: response.rawBody,
     });
+    const assertionResults = evaluateAssertions(
+      response,
+      await getExecutionAssertions(saved.id, input.workflowStepId),
+    );
     await completeExecution(
       input.executionId,
       redactExtractedOutputs(response, outputs),
+      assertionResults,
     );
   } catch (error) {
     const domainError = executionError(error);

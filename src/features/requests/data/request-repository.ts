@@ -13,9 +13,14 @@ import {
   sql,
 } from "drizzle-orm";
 
+import {
+  assertionDefinitionSchema,
+  type AssertionResult,
+} from "@/core/assertions/domain";
 import { maskSecret } from "@/core/secrets/redaction";
 import { getDatabase } from "@/db/client";
 import {
+  assertions,
   authProfiles,
   folders,
   importedDefinitions,
@@ -54,10 +59,13 @@ type QueryExecutor = Database | Transaction;
 type ParsedSavedRequestValues = z.output<typeof updateSavedRequestSchema>;
 type SavedRequestValues = Omit<
   ParsedSavedRequestValues,
-  "authProfileId" | "outputDefinitions"
+  "assertions" | "authProfileId" | "outputDefinitions"
 > &
   Partial<
-    Pick<ParsedSavedRequestValues, "authProfileId" | "outputDefinitions">
+    Pick<
+      ParsedSavedRequestValues,
+      "assertions" | "authProfileId" | "outputDefinitions"
+    >
   >;
 
 export interface ExecutionSuccess {
@@ -238,6 +246,8 @@ function toExecutionDetail(
     resolvedUrl: execution.resolvedUrl,
     requestSnapshot: execution.requestSnapshot as Record<string, unknown>,
     error: execution.error as { code: string; message: string } | null,
+    assertionsPassed: execution.assertionsPassed,
+    assertionResults: execution.assertionResults as AssertionResult[],
     startedAt: execution.startedAt?.toISOString() ?? null,
     completedAt: execution.completedAt?.toISOString() ?? null,
     createdAt: execution.createdAt.toISOString(),
@@ -318,6 +328,7 @@ export async function getSavedRequestDetail(
     requestVariableRows,
     environmentRows,
     outputRows,
+    assertionRows,
     authProfileRows,
     importedSourceRows,
     history,
@@ -356,6 +367,11 @@ export async function getSavedRequestDetail(
       .from(requestOutputDefinitions)
       .where(eq(requestOutputDefinitions.requestId, id))
       .orderBy(asc(requestOutputDefinitions.position)),
+    database
+      .select()
+      .from(assertions)
+      .where(eq(assertions.requestId, id))
+      .orderBy(asc(assertions.position)),
     database
       .select({
         id: authProfiles.id,
@@ -415,6 +431,15 @@ export async function getSavedRequestDetail(
       expiresInJsonPath: output.expiresInJsonPath,
       secret: output.secret,
     })),
+    assertions: assertionRows.map((assertion) =>
+      assertionDefinitionSchema.parse({
+        id: assertion.id,
+        name: assertion.name,
+        type: assertion.type,
+        configuration: assertion.configuration,
+        enabled: assertion.enabled,
+      }),
+    ),
     availableAuthProfiles: authProfileRows.map((profile) => ({
       id: profile.id,
       name: profile.name,
@@ -497,6 +522,7 @@ export async function createSavedRequest(values: {
 }
 
 export async function updateSavedRequest(input: SavedRequestValues) {
+  const assertionsProvided = input.assertions !== undefined;
   const values = updateSavedRequestSchema.parse({
     ...input,
     description: input.description ?? "",
@@ -603,6 +629,24 @@ export async function updateSavedRequest(input: SavedRequestValues) {
       );
     }
 
+    if (assertionsProvided) {
+      await transaction
+        .delete(assertions)
+        .where(eq(assertions.requestId, values.id));
+      if (values.assertions.length) {
+        await transaction.insert(assertions).values(
+          values.assertions.map((assertion, index) => ({
+            requestId: values.id,
+            name: assertion.name,
+            type: assertion.type,
+            configuration: assertion.configuration,
+            position: index,
+            enabled: assertion.enabled,
+          })),
+        );
+      }
+    }
+
     await transaction
       .insert(requestBodies)
       .values({ requestId: values.id, ...values.body })
@@ -684,6 +728,18 @@ export async function duplicateSavedRequest(id: string) {
           requestId: copy.id,
           ...output,
           position: index,
+        })),
+      );
+    }
+    if (source.assertions.length) {
+      await transaction.insert(assertions).values(
+        source.assertions.map((assertion, index) => ({
+          requestId: copy.id,
+          name: assertion.name,
+          type: assertion.type,
+          configuration: assertion.configuration,
+          position: index,
+          enabled: assertion.enabled,
         })),
       );
     }
@@ -787,13 +843,21 @@ async function trimHistory(executor: QueryExecutor, projectId: string) {
   }
 }
 
-export async function completeExecution(id: string, result: ExecutionSuccess) {
+export async function completeExecution(
+  id: string,
+  result: ExecutionSuccess,
+  assertionResults: AssertionResult[] = [],
+) {
   const database = getDatabase();
   await database.transaction(async (transaction) => {
     const [execution] = await transaction
       .update(requestExecutions)
       .set({
         status: "succeeded",
+        assertionResults,
+        assertionsPassed: assertionResults.length
+          ? assertionResults.every(({ passed }) => passed)
+          : null,
         completedAt: new Date(),
         updatedAt: new Date(),
       })

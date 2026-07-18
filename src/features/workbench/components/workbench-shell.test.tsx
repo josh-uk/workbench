@@ -71,6 +71,14 @@ vi.mock("@/features/imports/actions", () => ({
   previewCollectionImportAction: vi.fn(),
 }));
 
+vi.mock("@/features/workflows/actions", () => ({
+  deleteWorkflowAction: vi.fn(),
+  getWorkflowDetailAction: vi.fn(),
+  getWorkflowRunReportAction: vi.fn(),
+  listWorkflowsAction: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+  saveWorkflowAction: vi.fn(),
+}));
+
 describe("WorkbenchShell", () => {
   it("guides an empty installation into workspace creation", async () => {
     const user = userEvent.setup();

@@ -7,9 +7,9 @@ their API collections to a Git repository or a hosted account.
 
 > Workbench is under active development. Workspace organisation, saved request
 > editing, scoped environments and variables, reusable authentication, request
-> outputs, server-side execution, response inspection, and bounded history are
-> functional; later product areas are delivered through the numbered phase
-> issues.
+> outputs, server-side execution, response inspection, bounded history, ordered
+> workflows, and no-code assertions are functional; later product areas are
+> delivered through the numbered phase issues.
 
 ## Why Workbench
 
@@ -20,6 +20,7 @@ their API collections to a Git repository or a hosted account.
 - Reuse authentication and extracted request outputs across requests.
 - Preserve OpenAPI definitions as refreshable first-class records.
 - Import HTTPie, Postman, cURL, and raw HTTP sources through one preview flow.
+- Chain saved requests in ordered workflows with output passing and assertions.
 - Keep application data in a local PostgreSQL database with documented export
   and backup formats.
 
@@ -56,6 +57,11 @@ and environment exports; HTTPie CLI and cURL commands; Postman 2.x collections
 and environments; and raw HTTP requests. Every source is previewed with its
 target, supported records, warnings, and naming conflicts before a transactional
 replace, merge, rename, or skip operation.
+Ordered workflows reuse the same saved-request executor as individual sends.
+Each step can override runtime variables, add step-only assertions, stop or
+continue after failure, and pass generated outputs to later steps. Request and
+workflow reports retain individual assertion results without recording actual
+matched values.
 Documentation screenshots are captured from the real application with generic
 data and must never contain secrets.
 
@@ -158,7 +164,8 @@ See [Architecture](docs/architecture.md), [Data model](docs/data-model.md),
 [Request execution](docs/request-execution.md), and
 [OpenAPI import](docs/openapi-import.md),
 [Importer architecture](docs/importers.md), and
-[HTTPie import](docs/httpie-import.md).
+[HTTPie import](docs/httpie-import.md), and
+[Workflows and assertions](docs/workflows-and-assertions.md).
 
 ## Testing and security
 

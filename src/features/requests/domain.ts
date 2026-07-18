@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import {
+  assertionDefinitionsSchema,
+  type AssertionDefinition,
+  type AssertionResult,
+} from "@/core/assertions/domain";
+import {
   entityDescriptionSchema,
   entityIdSchema,
   entityNameSchema,
@@ -110,6 +115,7 @@ export const updateSavedRequestSchema = z.object({
   headers: z.array(requestFieldSchema).max(200),
   requestVariables: variableValuesSchema.default([]),
   outputDefinitions: requestOutputDefinitionsSchema.default([]),
+  assertions: assertionDefinitionsSchema.default([]),
   body: requestBodySchema,
   settings: requestSettingsSchema,
 });
@@ -167,6 +173,7 @@ export interface SavedRequestDetail extends SavedRequestSummary {
   headers: RequestField[];
   requestVariables: VariableValue[];
   outputDefinitions: RequestOutputDefinition[];
+  assertions: AssertionDefinition[];
   availableAuthProfiles: Array<{
     id: string;
     name: string;
@@ -214,6 +221,8 @@ export interface ExecutionDetail {
   resolvedUrl: string;
   requestSnapshot: Record<string, unknown>;
   error: { code: string; message: string } | null;
+  assertionsPassed: boolean | null;
+  assertionResults: AssertionResult[];
   startedAt: string | null;
   completedAt: string | null;
   createdAt: string;

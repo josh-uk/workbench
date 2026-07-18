@@ -30,6 +30,8 @@ export const requestExecutions = pgTable(
     method: text("method").notNull(),
     resolvedUrl: text("resolved_url").notNull(),
     requestSnapshot: jsonb("request_snapshot").notNull(),
+    assertionResults: jsonb("assertion_results").notNull().default([]),
+    assertionsPassed: boolean("assertions_passed"),
     error: jsonb("error"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),

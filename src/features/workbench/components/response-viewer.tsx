@@ -13,6 +13,7 @@ const responseTabs = [
   "Headers",
   "Cookies",
   "Outputs",
+  "Assertions",
   "Timing",
   "Request",
   "History",
@@ -82,7 +83,9 @@ export function ResponseViewer({
 
   const response = execution.response;
   const statusTone =
-    execution.status === "succeeded" && (response?.statusCode ?? 500) < 400
+    execution.status === "succeeded" &&
+    execution.assertionsPassed !== false &&
+    (response?.statusCode ?? 500) < 400
       ? "text-success"
       : execution.status === "cancelled"
         ? "text-warning"
@@ -123,6 +126,11 @@ export function ResponseViewer({
             {response.bodyTruncated ? (
               <span className="text-[10px] text-warning">
                 Preview truncated
+              </span>
+            ) : null}
+            {execution.assertionsPassed === false ? (
+              <span className="text-[10px] font-medium text-red-500">
+                Assertions failed
               </span>
             ) : null}
           </>
@@ -282,6 +290,37 @@ export function ResponseViewer({
           ) : (
             <p className="text-xs text-muted">
               This execution did not publish outputs.
+            </p>
+          )
+        ) : null}
+        {tab === "Assertions" ? (
+          execution.assertionResults.length ? (
+            <div className="space-y-2">
+              {execution.assertionResults.map((result, index) => (
+                <div
+                  className="rounded-lg border bg-surface p-3 text-xs"
+                  key={`${result.assertionId ?? result.name}-${index}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={
+                        result.passed ? "text-success" : "text-red-500"
+                      }
+                    >
+                      {result.passed ? "✓" : "✕"}
+                    </span>
+                    <span className="font-semibold">{result.name}</span>
+                    <span className="ml-auto font-mono text-[10px] text-muted">
+                      {result.owner.replace("_", " ")} · {result.type}
+                    </span>
+                  </div>
+                  <p className="mt-1 pl-5 text-muted">{result.message}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted">
+              No assertions ran for this execution.
             </p>
           )
         ) : null}
