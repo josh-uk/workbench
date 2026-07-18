@@ -29,6 +29,7 @@ jobs:
   publish:
     name: Publish GHCR image
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: verify
     steps:
       - uses: actions/checkout@v6
