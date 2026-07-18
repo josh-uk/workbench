@@ -60,6 +60,14 @@ secret variables, auth profiles, and replace/merge/rename/skip. The component
 test approves a preview plan, and Chromium imports then executes an HTTPie
 request against the local mock API.
 
+Assertion unit tests exercise all ten supported types, disabled rules, readable
+failures, JSON Schema validation, and bounded regular-expression rules.
+PostgreSQL workflow tests execute real loopback requests to prove ordered output
+handoff, request- and step-owned assertion persistence, stop-on-failure, and
+continue-on-failure reports. The Chromium flow builds two saved requests,
+publishes a generated value, consumes it in the next workflow step, and verifies
+the readable passing report.
+
 CI runs formatting, linting, strict type checking, unit coverage, component
 tests, migration checks, integration tests, a production build, Playwright,
 container build, and a high-severity dependency audit. Failure artifacts include

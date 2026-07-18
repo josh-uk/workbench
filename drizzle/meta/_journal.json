@@ -22,6 +22,13 @@
       "when": 1784388234726,
       "tag": "0002_unique_jackal",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784395563590,
+      "tag": "0003_fresh_tana_nile",
+      "breakpoints": true
     }
   ]
 }

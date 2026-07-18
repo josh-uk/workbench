@@ -33,6 +33,16 @@ const server = http.createServer((request, response) => {
     );
     return;
   }
+  if (request.url === "/workflow-seed") {
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ workflow_token: "e2e-handoff-value" }));
+    return;
+  }
+  if (request.url === "/workflow-consume/e2e-handoff-value") {
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ consumed: true }));
+    return;
+  }
 
   response.writeHead(200, {
     "Content-Type": "application/json",

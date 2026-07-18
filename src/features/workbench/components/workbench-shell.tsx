@@ -54,6 +54,7 @@ import { RequestEditor } from "./request-editor";
 import { RequestNavigationItem } from "./request-navigation";
 import { AuthProfileManager } from "./auth-profile-manager";
 import { VariableManager } from "./variable-manager";
+import { WorkflowManager } from "./workflow-manager";
 import {
   DeleteDialog,
   EntityEditorDialog,
@@ -88,7 +89,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
   const [configurationView, setConfigurationView] = useState<{
-    kind: "variables" | "auth" | "imports" | "collection_imports";
+    kind: "variables" | "auth" | "imports" | "collection_imports" | "workflows";
     projectId?: string;
   } | null>(null);
   const [notice, setNotice] = useState<{
@@ -399,7 +400,18 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                   });
                 }}
               />
-              <NavigationItem icon={Workflow} label="Workflows" />
+              <NavigationItem
+                active={configurationView?.kind === "workflows"}
+                icon={Workflow}
+                label="Workflows"
+                onClick={() => {
+                  setSelectedRequestId(null);
+                  setConfigurationView({
+                    kind: "workflows",
+                    projectId: selectedProject?.id,
+                  });
+                }}
+              />
               <NavigationItem icon={History} label="Request history" />
             </div>
             <div className="mb-2 flex items-center justify-between px-2">
@@ -655,6 +667,30 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                 <main className="grid min-w-0 flex-1 place-items-center p-8 text-center">
                   <p className="text-sm text-muted">
                     Create a project before importing requests and collections.
+                  </p>
+                </main>
+              )
+            ) : configurationView.kind === "workflows" ? (
+              selectedProject ? (
+                <WorkflowManager
+                  key={`workflows:${selectedProject.id}`}
+                  onClose={() => setConfigurationView(null)}
+                  onNotice={(tone, text) => setNotice({ tone, text })}
+                  onRefresh={() => router.refresh()}
+                  project={{
+                    id: selectedProject.id,
+                    name: selectedProject.name,
+                    requests: selectedProject.requests.map((request) => ({
+                      id: request.id,
+                      name: request.name,
+                      method: request.method,
+                    })),
+                  }}
+                />
+              ) : (
+                <main className="grid min-w-0 flex-1 place-items-center p-8 text-center">
+                  <p className="text-sm text-muted">
+                    Create a project before building a workflow.
                   </p>
                 </main>
               )

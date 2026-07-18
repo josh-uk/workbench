@@ -15,6 +15,7 @@ import {
 import { getDatabase } from "@/db/client";
 import {
   applicationSettings,
+  assertions,
   authProfileOverrides,
   authProfiles,
   environments,
@@ -27,6 +28,8 @@ import {
   requestQueryParameters,
   savedRequests,
   variables,
+  workflowSteps,
+  workflows,
   workspaces,
 } from "@/db/schema";
 import { parseRequestSettings } from "@/features/requests/domain";
@@ -310,6 +313,7 @@ async function copyProjectRequests(
       bodies,
       requestVariables,
       outputDefinitions,
+      requestAssertions,
     ] = await Promise.all([
       executor
         .select()
@@ -336,6 +340,10 @@ async function copyProjectRequests(
         .select()
         .from(requestOutputDefinitions)
         .where(eq(requestOutputDefinitions.requestId, source.id)),
+      executor
+        .select()
+        .from(assertions)
+        .where(eq(assertions.requestId, source.id)),
     ]);
     if (headers.length) {
       await executor.insert(requestHeaders).values(
@@ -394,9 +402,88 @@ async function copyProjectRequests(
         })),
       );
     }
+    if (requestAssertions.length) {
+      await executor.insert(assertions).values(
+        requestAssertions.map((assertion) => ({
+          requestId: copy.id,
+          name: assertion.name,
+          type: assertion.type,
+          configuration: assertion.configuration,
+          position: assertion.position,
+          enabled: assertion.enabled,
+        })),
+      );
+    }
     requestIds.set(source.id, copy.id);
   }
   return requestIds;
+}
+
+async function copyProjectWorkflows(
+  executor: QueryExecutor,
+  sourceProjectId: string,
+  targetProjectId: string,
+  requestIds: ReadonlyMap<string, string>,
+) {
+  const workflowRows = await executor
+    .select()
+    .from(workflows)
+    .where(eq(workflows.projectId, sourceProjectId))
+    .orderBy(asc(workflows.name));
+  for (const workflow of workflowRows) {
+    const [workflowCopy] = await executor
+      .insert(workflows)
+      .values({
+        projectId: targetProjectId,
+        name: workflow.name,
+        description: workflow.description,
+      })
+      .returning({ id: workflows.id });
+    if (!workflowCopy) continue;
+    const steps = await executor
+      .select()
+      .from(workflowSteps)
+      .where(eq(workflowSteps.workflowId, workflow.id))
+      .orderBy(asc(workflowSteps.position));
+    for (const step of steps) {
+      const requestId = requestIds.get(step.requestId);
+      if (!requestId) {
+        throw new WorkspaceDomainError(
+          "A copied workflow references a request outside its project.",
+        );
+      }
+      const [stepCopy] = await executor
+        .insert(workflowSteps)
+        .values({
+          workflowId: workflowCopy.id,
+          requestId,
+          name: step.name,
+          position: step.position,
+          failureMode: step.failureMode,
+          enabled: step.enabled,
+          runtimeOverrides: step.runtimeOverrides,
+        })
+        .returning({ id: workflowSteps.id });
+      if (!stepCopy) continue;
+      const stepAssertions = await executor
+        .select()
+        .from(assertions)
+        .where(eq(assertions.workflowStepId, step.id))
+        .orderBy(asc(assertions.position));
+      if (stepAssertions.length) {
+        await executor.insert(assertions).values(
+          stepAssertions.map((assertion) => ({
+            workflowStepId: stepCopy.id,
+            name: assertion.name,
+            type: assertion.type,
+            configuration: assertion.configuration,
+            position: assertion.position,
+            enabled: assertion.enabled,
+          })),
+        );
+      }
+    }
+  }
 }
 
 async function copyEnvironmentVariables(
@@ -895,6 +982,12 @@ export async function duplicateWorkspace(id: string) {
           projectAuthProfiles,
           requestIds,
         );
+        await copyProjectWorkflows(
+          transaction,
+          sourceProject.id,
+          project.id,
+          requestIds,
+        );
         await copyAuthOverrides(
           transaction,
           sourceProject.id,
@@ -1026,6 +1119,7 @@ export async function duplicateProject(id: string) {
       projectAuthProfiles.ids,
     );
     await remapAuthTokenRequests(transaction, projectAuthProfiles, requestIds);
+    await copyProjectWorkflows(transaction, source.id, project.id, requestIds);
     await copyAuthOverrides(transaction, source.id, project.id, new Map());
     return project;
   });

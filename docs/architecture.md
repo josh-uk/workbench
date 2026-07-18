@@ -78,6 +78,15 @@ folders, environments, variables, auth profiles, complete saved requests,
 source links, and the audit run. The editor sees only normal saved-request data;
 format-specific metadata remains on the imported operation.
 
+Workflow execution is an application service with no React or route-handler
+dependency. It loads an immutable ordered plan, invokes the same
+`executeSavedRequest` boundary used by individual sends, and waits for each step
+before resolving the next. Published request outputs are committed before the
+next step resolves variables. Request-owned and step-owned assertions share a
+side-effect-free core evaluator, while the workflow repository stores bounded
+run and step reports. The API route is deliberately thin so a future CLI or CI
+adapter can call the runner directly without restructuring the feature.
+
 ## Data flow
 
 1. The browser submits validated user intent to a server endpoint.

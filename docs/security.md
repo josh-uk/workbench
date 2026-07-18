@@ -78,6 +78,15 @@ metadata before persistence. Authentication traces contain profile identity,
 credential source, and injection target, but never the credential. Editing a
 profile or override invalidates its direct OAuth cache.
 
+Assertion evaluation runs on the server after a bounded response has completed.
+Definitions and counts are schema-bounded. Regular expressions reject
+backreferences, lookarounds, nested quantifiers, repeated unbounded wildcards,
+and oversized patterns; JSON Schemas are bounded JSON objects compiled without
+external reference loading. Persisted results contain pass/fail messages, never
+the actual matched header, JSONPath, or body value. Workflow runtime overrides
+follow the existing secret-taint path, and run reports expose only masked output
+values through their linked execution DTOs.
+
 ## Dependencies and images
 
 CI fails for high-severity npm audit findings. Dependabot monitors npm, Docker,

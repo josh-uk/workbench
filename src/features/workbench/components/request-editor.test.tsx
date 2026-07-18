@@ -30,6 +30,8 @@ const execution: ExecutionDetail = {
   resolvedUrl: "https://example.test/facts",
   requestSnapshot: { method: "GET" },
   error: null,
+  assertionsPassed: null,
+  assertionResults: [],
   startedAt: "2026-07-18T12:00:00.000Z",
   completedAt: "2026-07-18T12:00:00.020Z",
   createdAt: "2026-07-18T12:00:00.000Z",
@@ -63,6 +65,7 @@ const detail: SavedRequestDetail = {
   headers: [],
   requestVariables: [],
   outputDefinitions: [],
+  assertions: [],
   availableAuthProfiles: [
     {
       id: "d47ac10b-58cc-4372-a567-0e02b2c3d479",
@@ -349,5 +352,37 @@ describe("ResponseViewer", () => {
     expect(screen.getByText("content-type")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "History 1" }));
     expect(screen.getByText("https://example.test/facts")).toBeVisible();
+  });
+
+  it("shows failed request assertions independently from HTTP success", async () => {
+    const user = userEvent.setup();
+    const assertedExecution: ExecutionDetail = {
+      ...execution,
+      assertionsPassed: false,
+      assertionResults: [
+        {
+          assertionId: "d47ac10b-58cc-4372-a567-0e02b2c3d479",
+          name: "Body contract",
+          type: "body_schema",
+          owner: "request",
+          passed: false,
+          message: "Response body did not match the JSON Schema.",
+        },
+      ],
+    };
+    render(
+      <ResponseViewer
+        execution={assertedExecution}
+        history={[assertedExecution]}
+        onSelectHistory={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Assertions failed")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Assertions" }));
+    expect(screen.getByText("Body contract")).toBeVisible();
+    expect(
+      screen.getByText("Response body did not match the JSON Schema."),
+    ).toBeVisible();
   });
 });

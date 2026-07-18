@@ -39,6 +39,7 @@ import type { RequestResolutionPreview } from "@/features/variables/resolution";
 import { cn } from "@/lib/utils";
 
 import { RequestFieldEditor } from "./request-field-editor";
+import { AssertionEditor } from "./assertion-editor";
 import { ResponseViewer } from "./response-viewer";
 import { VariableRowsEditor } from "./variable-rows-editor";
 
@@ -50,6 +51,7 @@ const requestTabs = [
   "Variables",
   "Body",
   "Outputs",
+  "Tests",
   "Settings",
 ] as const;
 
@@ -87,6 +89,7 @@ function normaliseDraft(detail: SavedRequestDetail) {
     headers: detail.headers,
     requestVariables: detail.requestVariables,
     outputDefinitions: detail.outputDefinitions,
+    assertions: detail.assertions,
     body: detail.body,
     settings: detail.settings,
   };
@@ -223,10 +226,14 @@ export function RequestEditor({
           : current,
       );
       onNotice(
-        value.status === "succeeded" ? "success" : "error",
-        value.status === "succeeded"
-          ? `Request completed with ${value.response?.statusCode ?? "a response"}.`
-          : (value.error?.message ?? `Request ${value.status}.`),
+        value.status === "succeeded" && value.assertionsPassed !== false
+          ? "success"
+          : "error",
+        value.status === "succeeded" && value.assertionsPassed === false
+          ? `Request completed, but ${value.assertionResults.filter(({ passed }) => !passed).length} assertion(s) failed.`
+          : value.status === "succeeded"
+            ? `Request completed with ${value.response?.statusCode ?? "a response"}.`
+            : (value.error?.message ?? `Request ${value.status}.`),
       );
       onRefresh();
     } catch (error) {
@@ -488,7 +495,9 @@ export function RequestEditor({
                       ? detail.settings.cookies.length
                       : item === "Variables"
                         ? detail.requestVariables.length
-                        : null;
+                        : item === "Tests"
+                          ? detail.assertions.length
+                          : null;
               return (
                 <button
                   className={cn(
@@ -920,6 +929,22 @@ export function RequestEditor({
                 >
                   <Plus aria-hidden="true" className="size-4" /> Add output
                 </Button>
+              </div>
+            ) : null}
+            {tab === "Tests" ? (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xs font-semibold">Response assertions</h3>
+                  <p className="mt-1 text-[11px] leading-5 text-muted">
+                    Assertions run after every send and are stored with the
+                    execution report. They use the same evaluator as workflows
+                    and future headless runs.
+                  </p>
+                </div>
+                <AssertionEditor
+                  assertions={detail.assertions}
+                  onChange={(assertions) => update({ assertions })}
+                />
               </div>
             ) : null}
             {tab === "Settings" ? (
