@@ -12,8 +12,10 @@ triage the impact, and coordinate remediation and disclosure.
 
 ## Supported versions
 
-Until the first stable release, only the latest commit on `master` is supported.
-After `v1.0.0`, the support window will be documented in release notes.
+Before `v1.0.0`, the latest `0.1.x` release and the latest commit on `master` are
+supported. Security fixes are released from current development; older pre-1.0
+minor lines do not receive backports. The stable support window will be
+documented with the `v1.0.0` release.
 
 ## Scope
 

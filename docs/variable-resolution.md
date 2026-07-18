@@ -37,6 +37,8 @@ response headers, and matching textual response content are redacted before
 persistence. Tests and documentation use generic fake values and never include
 real credentials.
 
+![Scoped variables and environments](images/phase-10-variables.png)
+
 Environment deletion removes stale selections from saved request settings.
 Duplicating an environment copies its variables; duplicating a project or
 workspace deep-copies all applicable variable scopes and remaps selected
