@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f7f9;
+  --foreground: #171a21;
+  --surface: #ffffff;
+  --surface-subtle: #f0f2f5;
+  --surface-strong: #e6e9ef;
+  --border: #dfe3ea;
+  --muted: #687080;
+  --accent: #5b4ee8;
+  --accent-foreground: #ffffff;
+  --success: #178a64;
+  --warning: #d57418;
+  --code-background: #f7f8fb;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-strong: var(--surface-strong);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-code-background: var(--code-background);
+  --font-sans:
+    "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-mono:
+    "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+}
+
+[data-theme="dark"] {
+  --background: #111318;
+  --foreground: #eef0f5;
+  --surface: #171a21;
+  --surface-subtle: #1d2028;
+  --surface-strong: #292d38;
+  --border: #2b303b;
+  --muted: #9aa2b2;
+  --accent: #8c83ff;
+  --accent-foreground: #111318;
+  --success: #4bd0a0;
+  --warning: #f0a14a;
+  --code-background: #13151b;
+  color-scheme: dark;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
