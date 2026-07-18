@@ -12,10 +12,12 @@ import {
   Send,
   Square,
   Trash2,
+  Unlink,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { detachImportedRequestAction } from "@/features/openapi/actions";
 import {
   duplicateSavedRequestAction,
   updateSavedRequestAction,
@@ -159,6 +161,7 @@ export function RequestEditor({
 
   const save = useCallback(async () => {
     if (!detail) return false;
+    const wasModified = draftSignature(detail) !== savedSignature;
     setSaving(true);
     const result = await updateSavedRequestAction(normaliseDraft(detail));
     setSaving(false);
@@ -167,10 +170,20 @@ export function RequestEditor({
       return false;
     }
     setSavedSignature(draftSignature(detail));
+    if (wasModified && detail.importSource) {
+      setDetail((current) =>
+        current?.importSource
+          ? {
+              ...current,
+              importSource: { ...current.importSource, customized: true },
+            }
+          : current,
+      );
+    }
     onNotice("success", "Request saved.");
     onRefresh();
     return true;
-  }, [detail, onNotice, onRefresh]);
+  }, [detail, onNotice, onRefresh, savedSignature]);
 
   const send = useCallback(async () => {
     if (!detail || executingId) return;
@@ -307,6 +320,24 @@ export function RequestEditor({
     onRefresh();
   };
 
+  const saveAsCustom = async () => {
+    if (!detail?.importSource) return;
+    if (dirty && !(await save())) return;
+    const result = await detachImportedRequestAction({ requestId: detail.id });
+    if (!result.ok) {
+      onNotice("error", result.error);
+      return;
+    }
+    setDetail((current) =>
+      current ? { ...current, importSource: null } : current,
+    );
+    onNotice(
+      "success",
+      "Request saved as custom. Future OpenAPI refreshes will not change it.",
+    );
+    onRefresh();
+  };
+
   if (loadingError) {
     return (
       <main className="grid min-w-0 flex-1 place-items-center p-8 text-center">
@@ -424,6 +455,24 @@ export function RequestEditor({
             </Button>
           </div>
         </div>
+        {detail.importSource ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-accent/25 bg-accent/10 px-3 py-2 text-[11px]">
+            <span className="min-w-0 flex-1 text-muted">
+              Imported from{" "}
+              <span className="font-medium text-foreground">
+                {detail.importSource.definitionName}
+              </span>{" "}
+              · {detail.importSource.sourceKey}.{" "}
+              {detail.importSource.customized
+                ? "Customized; refreshes will not overwrite this request."
+                : "Refreshes update this request only while it remains unmodified."}
+            </span>
+            <Button onClick={saveAsCustom} size="sm" variant="secondary">
+              <Unlink aria-hidden="true" className="size-3.5" /> Save as custom
+              request
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

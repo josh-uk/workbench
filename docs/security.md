@@ -45,6 +45,13 @@ Set-Cookie headers are never persisted in clear text in execution history. The
 execution engine does not write request plans, bodies, or response contents to
 application logs.
 
+OpenAPI URL imports use the same pinned-address policy and redirect validation as
+request execution. They add a 2 MiB source cap, a 15-second timeout,
+five-redirect limit, and bounded parsing. URL credentials, non-HTTP protocols,
+cloud metadata targets, and unsafe redirects remain blocked even when trusted
+local networking is enabled. Posted preview content is not trusted as a way to
+bypass validation of its declared source URL.
+
 Variable values are stored only in the local PostgreSQL installation so they
 can be reused. The local trust boundary therefore includes database access.
 Marked values are password-masked in the normal editor and never returned in

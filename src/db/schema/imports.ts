@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   jsonb,
   pgTable,
@@ -15,6 +16,7 @@ import {
   importSourceTypeEnum,
 } from "./enums";
 import { primaryId, timestamps } from "./helpers";
+import { savedRequests } from "./requests";
 
 export const importedDefinitions = pgTable(
   "imported_definitions",
@@ -28,6 +30,7 @@ export const importedDefinitions = pgTable(
     sourceType: importSourceTypeEnum("source_type").notNull(),
     sourceUrl: text("source_url"),
     originalDocument: text("original_document").notNull(),
+    sourceHash: text("source_hash").notNull().default(""),
     version: text("version"),
     title: text("title"),
     apiVersion: text("api_version"),
@@ -54,6 +57,12 @@ export const importedOperations = pgTable(
     summary: text("summary"),
     tags: text("tags").array(),
     operation: jsonb("operation").notNull(),
+    operationHash: text("operation_hash").notNull().default(""),
+    requestId: uuid("request_id").references(() => savedRequests.id, {
+      onDelete: "set null",
+    }),
+    generatedRequestHash: text("generated_request_hash"),
+    customized: boolean("customized").notNull().default(false),
     ...timestamps(),
   },
   (table) => [
@@ -61,6 +70,7 @@ export const importedOperations = pgTable(
       table.definitionId,
       table.sourceKey,
     ),
+    uniqueIndex("imported_operations_request_unique").on(table.requestId),
   ],
 );
 
@@ -79,6 +89,9 @@ export const importRuns = pgTable(
     status: importRunStatusEnum("status").notNull(),
     summary: jsonb("summary").notNull().default({}),
     warnings: jsonb("warnings").notNull().default([]),
+    sourceDocument: text("source_document"),
+    sourceHash: text("source_hash"),
+    changes: jsonb("changes").notNull().default([]),
     error: text("error"),
     ...timestamps(),
   },

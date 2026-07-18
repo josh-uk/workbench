@@ -179,6 +179,12 @@ export interface SavedRequestDetail extends SavedRequestSummary {
   };
   body: RequestBody;
   settings: RequestSettings;
+  importSource: {
+    definitionId: string;
+    definitionName: string;
+    sourceKey: string;
+    customized: boolean;
+  } | null;
   history: ExecutionDetail[];
 }
 

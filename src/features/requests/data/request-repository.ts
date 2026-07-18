@@ -18,6 +18,8 @@ import { getDatabase } from "@/db/client";
 import {
   authProfiles,
   folders,
+  importedDefinitions,
+  importedOperations,
   environments,
   projects,
   requestBodies,
@@ -30,6 +32,7 @@ import {
   savedRequests,
   variables,
 } from "@/db/schema";
+import { syncImportedRequestCustomization } from "@/features/openapi/data/openapi-repository";
 import {
   createRequestCopyName,
   type ExecutionDetail,
@@ -316,6 +319,7 @@ export async function getSavedRequestDetail(
     environmentRows,
     outputRows,
     authProfileRows,
+    importedSourceRows,
     history,
   ] = await Promise.all([
     database
@@ -368,6 +372,20 @@ export async function getSavedRequestDetail(
         ),
       )
       .orderBy(asc(authProfiles.name)),
+    database
+      .select({
+        definitionId: importedDefinitions.id,
+        definitionName: importedDefinitions.name,
+        sourceKey: importedOperations.sourceKey,
+        customized: importedOperations.customized,
+      })
+      .from(importedOperations)
+      .innerJoin(
+        importedDefinitions,
+        eq(importedDefinitions.id, importedOperations.definitionId),
+      )
+      .where(eq(importedOperations.requestId, id))
+      .limit(1),
     getHistory(database, id),
   ]);
   const body = bodyRows[0];
@@ -418,6 +436,7 @@ export async function getSavedRequestDetail(
         }
       : { type: "none", content: null, contentType: null, metadata: {} },
     settings: parseRequestSettings(request.settings),
+    importSource: importedSourceRows[0] ?? null,
     history,
   };
 }
@@ -591,6 +610,7 @@ export async function updateSavedRequest(input: SavedRequestValues) {
         target: requestBodies.requestId,
         set: { ...values.body, updatedAt: new Date() },
       });
+    await syncImportedRequestCustomization(transaction, values.id);
   });
 }
 

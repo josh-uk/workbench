@@ -48,6 +48,7 @@ import type { WorkbenchNavigation } from "@/features/workspaces/domain";
 import { cn } from "@/lib/utils";
 
 import { ProjectOverview } from "./project-overview";
+import { OpenApiManager } from "./openapi-manager";
 import { RequestEditor } from "./request-editor";
 import { RequestNavigationItem } from "./request-navigation";
 import { AuthProfileManager } from "./auth-profile-manager";
@@ -86,7 +87,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
   const [configurationView, setConfigurationView] = useState<{
-    kind: "variables" | "auth";
+    kind: "variables" | "auth" | "imports";
     projectId?: string;
   } | null>(null);
   const [notice, setNotice] = useState<{
@@ -373,7 +374,18 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                   });
                 }}
               />
-              <NavigationItem icon={Import} label="Imported definitions" />
+              <NavigationItem
+                active={configurationView?.kind === "imports"}
+                icon={Import}
+                label="Imported definitions"
+                onClick={() => {
+                  setSelectedRequestId(null);
+                  setConfigurationView({
+                    kind: "imports",
+                    projectId: selectedProject?.id,
+                  });
+                }}
+              />
               <NavigationItem icon={Workflow} label="Workflows" />
               <NavigationItem icon={History} label="Request history" />
             </div>
@@ -595,6 +607,25 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                   name: activeWorkspace.name,
                 }}
               />
+            ) : configurationView.kind === "imports" ? (
+              selectedProject ? (
+                <OpenApiManager
+                  key={`imports:${selectedProject.id}`}
+                  onClose={() => setConfigurationView(null)}
+                  onNotice={(tone, text) => setNotice({ tone, text })}
+                  onRefresh={() => router.refresh()}
+                  project={{
+                    id: selectedProject.id,
+                    name: selectedProject.name,
+                  }}
+                />
+              ) : (
+                <main className="grid min-w-0 flex-1 place-items-center p-8 text-center">
+                  <p className="text-sm text-muted">
+                    Create a project before importing an OpenAPI definition.
+                  </p>
+                </main>
+              )
             ) : (
               <VariableManager
                 key={`variables:${activeWorkspace.id}:${configurationView.projectId ?? "workspace"}`}

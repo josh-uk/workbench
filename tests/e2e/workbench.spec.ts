@@ -8,6 +8,7 @@ const environmentName = `Local ${runId}`;
 const tokenRequestName = `Generate OAuth token ${runId}`;
 const authProfileName = `Derived OAuth ${runId}`;
 const protectedRequestName = `Protected fact ${runId}`;
+const importedRequestName = `Imported facts ${runId}`;
 
 test.describe.serial("workspace and project management", () => {
   test("creates and persists a workspace, project, and nested folders", async ({
@@ -262,5 +263,58 @@ test.describe.serial("workspace and project management", () => {
 
     await page.getByRole("button", { name: /Send/ }).click();
     await expect(page.getByText(/"derivedTokenRequests": 1/)).toBeVisible();
+  });
+
+  test("imports an OpenAPI operation and executes the generated request", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Imported definitions" }).click();
+    await page.getByRole("button", { name: "Import OpenAPI" }).click();
+    await page.getByLabel("OpenAPI JSON or YAML").fill(
+      JSON.stringify({
+        openapi: "3.1.0",
+        info: { title: `E2E Facts ${runId}`, version: "1.0.0" },
+        servers: [{ url: "http://127.0.0.1:3201" }],
+        paths: {
+          "/facts": {
+            get: {
+              operationId: `listFacts${runId}`,
+              summary: importedRequestName,
+              tags: [`Imported ${runId}`],
+              parameters: [
+                {
+                  name: "source",
+                  in: "query",
+                  schema: { type: "string", example: "openapi" },
+                },
+              ],
+              responses: { "200": { description: "Facts" } },
+            },
+          },
+        },
+      }),
+    );
+    await page.getByLabel("Allow trusted private/local network").check();
+    await page.getByRole("button", { name: "Preview import" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: `E2E Facts ${runId}` }),
+    ).toBeVisible();
+    await expect(page.getByText(importedRequestName)).toBeVisible();
+    await page.getByRole("button", { name: "Apply import" }).click();
+    await expect(
+      page.getByText(`Imported 1 requests from E2E Facts ${runId}.`),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Close imports" }).click();
+    await page.getByText(importedRequestName, { exact: true }).click();
+    await expect(page.getByLabel("Request URL")).toHaveValue(
+      "{{baseUrl}}/facts",
+    );
+    await page.getByRole("button", { name: /Send/ }).click();
+    await expect(page.getByText("200 OK")).toBeVisible();
+    await expect(page.getByText(/Honey never spoils/)).toBeVisible();
+    await expect(page.getByText(/source=openapi/)).toBeVisible();
   });
 });
