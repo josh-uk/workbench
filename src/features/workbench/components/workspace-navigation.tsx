@@ -18,7 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,26 +35,12 @@ import type {
   WorkbenchNavigation,
   WorkspaceNavigation,
 } from "@/features/workspaces/domain";
+import type { SavedRequestSummary } from "@/features/requests/domain";
 import { cn } from "@/lib/utils";
 
 import type { DeleteState, EditorState, Mutation } from "./workspace-ui-types";
-
-export const menuItemClass =
-  "flex cursor-default items-center gap-2 rounded px-2 py-1.5 text-xs outline-none data-[highlighted]:bg-surface-strong data-[disabled]:opacity-40";
-
-export function MenuContent({ children }: { children: ReactNode }) {
-  return (
-    <DropdownMenu.Portal>
-      <DropdownMenu.Content
-        align="end"
-        className="z-50 min-w-44 rounded-lg border bg-surface p-1 text-foreground shadow-xl"
-        sideOffset={5}
-      >
-        {children}
-      </DropdownMenu.Content>
-    </DropdownMenu.Portal>
-  );
-}
+import { RequestNavigationItem } from "./request-navigation";
+import { MenuContent, menuItemClass } from "./workbench-menu";
 
 export function NavigationItem({
   icon: Icon,
@@ -74,10 +60,19 @@ export function NavigationItem({
   );
 }
 
-export function folderMatchesQuery(folder: FolderNode, query: string): boolean {
+export function folderMatchesQuery(
+  folder: FolderNode,
+  query: string,
+  requests: SavedRequestSummary[] = [],
+): boolean {
   return (
     folder.name.toLocaleLowerCase().includes(query) ||
-    folder.children.some((child) => folderMatchesQuery(child, query))
+    requests.some(
+      (request) =>
+        request.folderId === folder.id &&
+        request.name.toLocaleLowerCase().includes(query),
+    ) ||
+    folder.children.some((child) => folderMatchesQuery(child, query, requests))
   );
 }
 
@@ -181,12 +176,14 @@ function FolderMenu({
   setDeleteState,
   setEditor,
   runMutation,
+  onCreateRequest,
 }: {
   folder: FolderNode;
   pending: boolean;
   setDeleteState: (state: DeleteState) => void;
   setEditor: (state: EditorState) => void;
   runMutation: (mutation: Mutation, success: string) => void;
+  onCreateRequest: (projectId: string, folderId: string) => void;
 }) {
   return (
     <DropdownMenu.Root>
@@ -202,6 +199,12 @@ function FolderMenu({
         </Button>
       </DropdownMenu.Trigger>
       <MenuContent>
+        <DropdownMenu.Item
+          className={menuItemClass}
+          onSelect={() => onCreateRequest(folder.projectId, folder.id)}
+        >
+          <Plus aria-hidden="true" className="size-3.5" /> New request
+        </DropdownMenu.Item>
         <DropdownMenu.Item
           className={menuItemClass}
           onSelect={() =>
@@ -280,6 +283,10 @@ export function FolderTree({
   runMutation,
   setDeleteState,
   setEditor,
+  requests,
+  selectedRequestId,
+  setSelectedRequestId,
+  onCreateRequest,
   depth = 0,
 }: {
   folders: FolderNode[];
@@ -288,16 +295,24 @@ export function FolderTree({
   runMutation: (mutation: Mutation, success: string) => void;
   setDeleteState: (state: DeleteState) => void;
   setEditor: (state: EditorState) => void;
+  requests: SavedRequestSummary[];
+  selectedRequestId: string | null;
+  setSelectedRequestId: (id: string) => void;
+  onCreateRequest: (projectId: string, folderId: string) => void;
   depth?: number;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const visibleFolders = folders.filter(
-    (folder) => !query || folderMatchesQuery(folder, query),
+    (folder) => !query || folderMatchesQuery(folder, query, requests),
   );
 
   return visibleFolders.map((folder) => {
     const isCollapsed = collapsed.has(folder.id) && !query;
     const hasChildren = folder.children.length > 0;
+    const hasRequests = requests.some(
+      (request) => request.folderId === folder.id,
+    );
+    const hasContent = hasChildren || hasRequests;
 
     return (
       <div key={folder.id}>
@@ -309,7 +324,7 @@ export function FolderTree({
             aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${folder.name}`}
             className={cn(
               "grid size-6 place-items-center",
-              !hasChildren && "invisible",
+              !hasContent && "invisible",
             )}
             onClick={() =>
               setCollapsed((current) => {
@@ -340,8 +355,30 @@ export function FolderTree({
             runMutation={runMutation}
             setDeleteState={setDeleteState}
             setEditor={setEditor}
+            onCreateRequest={onCreateRequest}
           />
         </div>
+        {!isCollapsed ? (
+          <div style={{ paddingLeft: `${Math.min(depth, 6) * 12 + 30}px` }}>
+            {requests
+              .filter(
+                (request) =>
+                  request.folderId === folder.id &&
+                  (!query || request.name.toLocaleLowerCase().includes(query)),
+              )
+              .map((request) => (
+                <RequestNavigationItem
+                  key={request.id}
+                  pending={pending}
+                  request={request}
+                  runMutation={runMutation}
+                  selected={request.id === selectedRequestId}
+                  setDeleteState={setDeleteState}
+                  setSelectedRequestId={setSelectedRequestId}
+                />
+              ))}
+          </div>
+        ) : null}
         {!isCollapsed && hasChildren ? (
           <FolderTree
             depth={depth + 1}
@@ -351,6 +388,10 @@ export function FolderTree({
             runMutation={runMutation}
             setDeleteState={setDeleteState}
             setEditor={setEditor}
+            requests={requests}
+            selectedRequestId={selectedRequestId}
+            setSelectedRequestId={setSelectedRequestId}
+            onCreateRequest={onCreateRequest}
           />
         ) : null}
       </div>

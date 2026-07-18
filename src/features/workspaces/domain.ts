@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { SavedRequestSummary } from "@/features/requests/domain";
+
 export const entityIdSchema = z.uuid();
 
 export const entityNameSchema = z
@@ -85,6 +87,8 @@ export interface ProjectNavigation {
   position: number;
   archived: boolean;
   requestCount: number;
+  executionCount: number;
+  requests: SavedRequestSummary[];
   folders: FolderNode[];
 }
 

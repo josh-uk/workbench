@@ -37,6 +37,7 @@ export type EditorState =
 export type DeleteState =
   | { kind: "workspace"; id: string; name: string }
   | { kind: "project"; id: string; name: string }
-  | { kind: "folder"; id: string; name: string };
+  | { kind: "folder"; id: string; name: string }
+  | { kind: "request"; id: string; name: string };
 
 export type Mutation = () => Promise<ActionResult<unknown>>;

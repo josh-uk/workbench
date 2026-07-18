@@ -28,6 +28,23 @@ Disabling TLS verification or enabling access to private destinations is a
 per-request or explicit administrator choice and must be visible in the execution
 trace.
 
+## Outbound request implementation
+
+The Phase 3 executor validates the protocol, rejects URL-embedded credentials,
+resolves every address, blocks mixed public/private DNS answers by default, and
+pins the socket to a validated address while retaining the original host for
+HTTP Host and TLS SNI. Redirect locations receive the same validation. Metadata
+hosts and addresses remain blocked even when a user explicitly enables trusted
+private-network access.
+
+Request and response limits are enforced while streaming. Managed framing and
+hop-by-hop headers cannot be overridden. Saved execution snapshots redact marked
+and well-known sensitive headers, cookies, and sensitive query values; matching
+secrets are also removed from textual response previews. Cookie values and
+Set-Cookie headers are never persisted in clear text in execution history. The
+execution engine does not write request plans, bodies, or response contents to
+application logs.
+
 ## Dependencies and images
 
 CI fails for high-severity npm audit findings. Dependabot monitors npm, Docker,

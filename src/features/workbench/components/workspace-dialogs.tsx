@@ -24,7 +24,7 @@ import {
 } from "@/features/workspaces/domain";
 import { cn } from "@/lib/utils";
 
-import { MenuContent, menuItemClass } from "./workspace-navigation";
+import { MenuContent, menuItemClass } from "./workbench-menu";
 import type { DeleteState, EditorState, Mutation } from "./workspace-ui-types";
 
 export function EntityEditorDialog({
@@ -363,7 +363,9 @@ export function DeleteDialog({
           <AlertDialog.Description className="mt-2 text-sm leading-6 text-muted">
             {state?.kind === "folder"
               ? `“${state.name}” and its nested folders will be removed. Saved requests are moved to the project root.`
-              : `“${state?.name}” and all of its contained data will be permanently removed.`}
+              : state?.kind === "request"
+                ? `“${state.name}” will be removed. Its bounded execution history remains associated with the project.`
+                : `“${state?.name}” and all of its contained data will be permanently removed.`}
           </AlertDialog.Description>
           <div className="mt-5 flex justify-end gap-2">
             <AlertDialog.Cancel asChild>
