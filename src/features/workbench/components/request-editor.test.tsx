@@ -28,6 +28,7 @@ const execution: ExecutionDetail = {
   startedAt: "2026-07-18T12:00:00.000Z",
   completedAt: "2026-07-18T12:00:00.020Z",
   createdAt: "2026-07-18T12:00:00.000Z",
+  outputs: [],
   response: {
     statusCode: 200,
     statusText: "OK",
@@ -44,6 +45,7 @@ const execution: ExecutionDetail = {
 
 const detail: SavedRequestDetail = {
   id: "b47ac10b-58cc-4372-a567-0e02b2c3d479",
+  authProfileId: null,
   projectId: "c47ac10b-58cc-4372-a567-0e02b2c3d479",
   folderId: null,
   name: "List facts",
@@ -55,6 +57,15 @@ const detail: SavedRequestDetail = {
   queryParameters: [],
   headers: [],
   requestVariables: [],
+  outputDefinitions: [],
+  availableAuthProfiles: [
+    {
+      id: "d47ac10b-58cc-4372-a567-0e02b2c3d479",
+      name: "Shared OAuth",
+      type: "oauth2_client_credentials",
+      scope: "workspace",
+    },
+  ],
   availableEnvironments: {
     workspace: [{ id: "d47ac10b-58cc-4372-a567-0e02b2c3d479", name: "Local" }],
     project: [],
@@ -110,6 +121,59 @@ describe("RequestEditor", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(updateSavedRequestAction).toHaveBeenCalled());
     expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
+  });
+
+  it("selects authentication and configures a reusable output", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => structuredClone(detail),
+      }),
+    );
+    vi.mocked(updateSavedRequestAction).mockResolvedValue({
+      ok: true,
+      data: undefined,
+    });
+    render(
+      <RequestEditor
+        folders={[]}
+        onDelete={vi.fn()}
+        onNotice={vi.fn()}
+        onRefresh={vi.fn()}
+        onSelectRequest={vi.fn()}
+        requestId={detail.id}
+      />,
+    );
+
+    await screen.findByLabelText("Request URL");
+    await user.click(screen.getByRole("button", { name: "Auth" }));
+    await user.selectOptions(
+      screen.getByLabelText("Authentication profile"),
+      "d47ac10b-58cc-4372-a567-0e02b2c3d479",
+    );
+    await user.click(screen.getAllByRole("button", { name: "Outputs" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Add output" }));
+    await user.clear(screen.getByLabelText("Output 1 name"));
+    await user.type(screen.getByLabelText("Output 1 name"), "entityId");
+    await user.clear(screen.getByLabelText("Output 1 JSONPath"));
+    await user.type(screen.getByLabelText("Output 1 JSONPath"), "$.entity.id");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateSavedRequestAction).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          authProfileId: "d47ac10b-58cc-4372-a567-0e02b2c3d479",
+          outputDefinitions: [
+            expect.objectContaining({
+              name: "entityId",
+              jsonPath: "$.entity.id",
+            }),
+          ],
+        }),
+      ),
+    );
   });
 
   it("renders bounded load errors", async () => {

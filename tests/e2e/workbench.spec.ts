@@ -5,6 +5,9 @@ const workspaceName = `E2E Work ${runId}`;
 const projectName = `Project ${runId}`;
 const requestName = `Get fact ${runId}`;
 const environmentName = `Local ${runId}`;
+const tokenRequestName = `Generate OAuth token ${runId}`;
+const authProfileName = `Derived OAuth ${runId}`;
+const protectedRequestName = `Protected fact ${runId}`;
 
 test.describe.serial("workspace and project management", () => {
   test("creates and persists a workspace, project, and nested folders", async ({
@@ -194,5 +197,70 @@ test.describe.serial("workspace and project management", () => {
     await expect(requestVariables.getByLabel("Variable value 1")).toHaveValue(
       "facts",
     );
+  });
+
+  test("extracts and reuses a saved OAuth token without exposing it", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "New request" }).click();
+    await page.getByLabel("Request name").fill(tokenRequestName);
+    await page
+      .getByLabel("Request URL")
+      .fill("http://127.0.0.1:3201/derived-token");
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: "Settings" })
+      .click();
+    await page.getByLabel("Allow trusted private/local network").check();
+    await page.getByRole("button", { name: "Outputs" }).click();
+    await page.getByRole("button", { name: "Add output" }).click();
+    await page.getByLabel("Output 1 name").fill("accessToken");
+    await page.getByLabel("Output 1 JSONPath").fill("$.access_token");
+    await page.getByLabel("Output 1 expiry JSONPath").fill("$.expires_in");
+    await page
+      .getByLabel("Output 1 name")
+      .locator("..")
+      .getByText("Secret")
+      .click();
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Request saved.")).toBeVisible();
+
+    await page.getByRole("button", { name: "Authentication profiles" }).click();
+    await page.getByRole("button", { name: "New profile" }).click();
+    await page.getByLabel("Name").fill(authProfileName);
+    await page.getByLabel("Type").selectOption("request_derived");
+    await page.getByLabel("Token request").selectOption({
+      label: tokenRequestName,
+    });
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Authentication profile saved.")).toBeVisible();
+    await page
+      .getByRole("button", { name: "Close authentication profiles" })
+      .click();
+
+    await page.getByRole("button", { name: "New request" }).click();
+    await page.getByLabel("Request name").fill(protectedRequestName);
+    await page
+      .getByLabel("Request URL")
+      .fill("http://127.0.0.1:3201/protected");
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: "Settings" })
+      .click();
+    await page.getByLabel("Allow trusted private/local network").check();
+    await page.getByRole("button", { name: "Auth", exact: true }).click();
+    await page.getByLabel("Authentication profile").selectOption({
+      label: `${authProfileName} · request derived · project`,
+    });
+    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: /Send/ }).click();
+    await expect(page.getByText("200 OK")).toBeVisible();
+    await expect(page.getByText(/derivedTokenRequests/)).toBeVisible();
+    await expect(page.getByText(/e2e-derived-secret/)).toHaveCount(0);
+    await expect(page.getByText(/••••••••/)).toBeVisible();
+
+    await page.getByRole("button", { name: /Send/ }).click();
+    await expect(page.getByText(/"derivedTokenRequests": 1/)).toBeVisible();
   });
 });

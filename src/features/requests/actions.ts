@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ZodError, type ZodType } from "zod";
+import { type output, ZodError, type ZodType } from "zod";
 
 import {
   createSavedRequest,
@@ -43,10 +43,10 @@ function failure(error: unknown): RequestActionResult<never> {
   return { ok: false, error: "The request change could not be saved." };
 }
 
-async function perform<TInput, TOutput = undefined>(
-  schema: ZodType<TInput>,
+async function perform<TSchema extends ZodType, TOutput = undefined>(
+  schema: TSchema,
   input: unknown,
-  mutation: (values: TInput) => Promise<TOutput>,
+  mutation: (values: output<TSchema>) => Promise<TOutput>,
 ): Promise<RequestActionResult<TOutput>> {
   try {
     const values = schema.parse(input);

@@ -10,6 +10,10 @@ import {
   type VariableValue,
   variableValuesSchema,
 } from "@/features/variables/domain";
+import {
+  requestOutputDefinitionsSchema,
+  type RequestOutputDefinition,
+} from "@/features/request-outputs/domain";
 
 export const httpMethods = [
   "GET",
@@ -95,6 +99,7 @@ export const createSavedRequestSchema = z.object({
 
 export const updateSavedRequestSchema = z.object({
   id: entityIdSchema,
+  authProfileId: entityIdSchema.nullable().default(null),
   name: entityNameSchema,
   description: entityDescriptionSchema.default(""),
   method: httpMethodSchema,
@@ -104,6 +109,7 @@ export const updateSavedRequestSchema = z.object({
   queryParameters: z.array(requestFieldSchema.omit({ secret: true })).max(200),
   headers: z.array(requestFieldSchema).max(200),
   requestVariables: variableValuesSchema.default([]),
+  outputDefinitions: requestOutputDefinitionsSchema.default([]),
   body: requestBodySchema,
   settings: requestSettingsSchema,
 });
@@ -153,12 +159,20 @@ export interface SavedRequestSummary {
 }
 
 export interface SavedRequestDetail extends SavedRequestSummary {
+  authProfileId: string | null;
   description: string | null;
   url: string;
   tags: string[];
   queryParameters: RequestField[];
   headers: RequestField[];
   requestVariables: VariableValue[];
+  outputDefinitions: RequestOutputDefinition[];
+  availableAuthProfiles: Array<{
+    id: string;
+    name: string;
+    type: string;
+    scope: "workspace" | "project";
+  }>;
   availableEnvironments: {
     workspace: Array<{ id: string; name: string }>;
     project: Array<{ id: string; name: string }>;
@@ -197,6 +211,12 @@ export interface ExecutionDetail {
   startedAt: string | null;
   completedAt: string | null;
   createdAt: string;
+  outputs: Array<{
+    name: string;
+    value: string;
+    secret: boolean;
+    expiresAt: string | null;
+  }>;
   response: {
     statusCode: number | null;
     statusText: string | null;

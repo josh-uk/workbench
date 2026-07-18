@@ -1,6 +1,7 @@
 import http from "node:http";
 
 const port = Number(process.env.E2E_MOCK_PORT ?? 3201);
+let derivedTokenRequests = 0;
 
 const server = http.createServer((request, response) => {
   if (request.url === "/health") {
@@ -20,6 +21,18 @@ const server = http.createServer((request, response) => {
     }, 1_500);
     return;
   }
+  if (request.url === "/derived-token") {
+    derivedTokenRequests += 1;
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(
+      JSON.stringify({
+        access_token: `e2e-derived-secret-${derivedTokenRequests}`,
+        expires_in: 3_600,
+        token_type: "Bearer",
+      }),
+    );
+    return;
+  }
 
   response.writeHead(200, {
     "Content-Type": "application/json",
@@ -32,6 +45,8 @@ const server = http.createServer((request, response) => {
       method: request.method,
       url: request.url,
       testHeader: request.headers["x-test"] ?? null,
+      authorization: request.headers.authorization ?? null,
+      derivedTokenRequests,
     }),
   );
 });

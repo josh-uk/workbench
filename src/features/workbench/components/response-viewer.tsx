@@ -12,6 +12,7 @@ const responseTabs = [
   "Raw",
   "Headers",
   "Cookies",
+  "Outputs",
   "Timing",
   "Request",
   "History",
@@ -254,6 +255,34 @@ export function ResponseViewer({
             </div>
           ) : (
             <p className="text-xs text-muted">No response cookies.</p>
+          )
+        ) : null}
+        {tab === "Outputs" ? (
+          execution.outputs.length ? (
+            <div className="space-y-2">
+              {execution.outputs.map((output) => (
+                <div
+                  className="grid gap-2 rounded-lg border bg-surface p-3 text-xs sm:grid-cols-[12rem_1fr_auto]"
+                  key={output.name}
+                >
+                  <span className="font-mono font-semibold">{output.name}</span>
+                  <span className="font-mono break-all text-muted">
+                    {output.value}
+                  </span>
+                  <span className="text-[10px] text-muted">
+                    {output.expiresAt
+                      ? `Expires ${new Date(output.expiresAt).toLocaleString()}`
+                      : output.secret
+                        ? "Secret · no expiry"
+                        : "No expiry"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted">
+              This execution did not publish outputs.
+            </p>
           )
         ) : null}
         {tab === "Timing" ? (
