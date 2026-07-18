@@ -55,6 +55,7 @@ export interface RequestPlan {
   headers: RequestField[];
   body: RequestBody;
   settings: RequestSettings;
+  secretValues?: string[];
 }
 
 export interface EngineResponse {
@@ -83,7 +84,22 @@ interface RawResponse {
   body: Buffer;
 }
 
-export function safeDisplayUrl(input: URL | string) {
+function redactKnownSecrets(value: string, secrets: readonly string[] = []) {
+  return secrets.filter(Boolean).reduce(
+    (redacted, secret) =>
+      redacted
+        .split(secret)
+        .join(maskSecret(secret))
+        .split(encodeURIComponent(secret))
+        .join(encodeURIComponent(maskSecret(secret))),
+    value,
+  );
+}
+
+export function safeDisplayUrl(
+  input: URL | string,
+  secretValues: readonly string[] = [],
+) {
   const url = typeof input === "string" ? new URL(input) : new URL(input.href);
   for (const key of url.searchParams.keys()) {
     if (sensitiveQueryName.test(key))
@@ -91,7 +107,7 @@ export function safeDisplayUrl(input: URL | string) {
   }
   url.username = "";
   url.password = "";
-  return url.toString();
+  return redactKnownSecrets(url.toString(), secretValues);
 }
 
 function parseKeyValueLines(content: string) {
@@ -276,7 +292,7 @@ export function createRequestSnapshot(plan: RequestPlan) {
   const url = buildTargetUrl(plan);
   return {
     method: plan.method,
-    url: safeDisplayUrl(url),
+    url: safeDisplayUrl(url, plan.secretValues),
     headers: plan.headers
       .filter((header) => header.enabled)
       .map((header) => ({
@@ -372,7 +388,10 @@ function requestOnce(
   );
 }
 
-function responseHeaders(rawHeaders: string[]): ResponseHeader[] {
+function responseHeaders(
+  rawHeaders: string[],
+  secretValues: readonly string[] = [],
+): ResponseHeader[] {
   const result: ResponseHeader[] = [];
   for (let index = 0; index < rawHeaders.length; index += 2) {
     const name = rawHeaders[index] ?? "";
@@ -381,7 +400,7 @@ function responseHeaders(rawHeaders: string[]): ResponseHeader[] {
       name,
       value: sensitiveResponseHeaders.has(name.toLocaleLowerCase())
         ? maskSecret(value)
-        : value,
+        : redactKnownSecrets(value, secretValues),
     });
   }
   return result;
@@ -412,6 +431,7 @@ function isTextContent(contentType: string | null) {
 
 function redactResponseText(value: string, plan: RequestPlan) {
   const secrets = [
+    ...(plan.secretValues ?? []),
     ...plan.headers
       .filter(
         (header) =>
@@ -498,8 +518,8 @@ export async function executeHttpRequest(
       );
       redirects.push({
         statusCode: response.statusCode,
-        url: safeDisplayUrl(currentUrl),
-        location: safeDisplayUrl(nextUrl),
+        url: safeDisplayUrl(currentUrl, plan.secretValues),
+        location: safeDisplayUrl(nextUrl, plan.secretValues),
       });
       const nextMethod = redirectMethod(response.statusCode, method);
       if (nextMethod === "GET" && method !== "GET") {
@@ -524,7 +544,7 @@ export async function executeHttpRequest(
       statusText: response.statusText,
       durationMs: Math.max(0, Math.round(performance.now() - started)),
       sizeBytes: response.body.byteLength,
-      headers: responseHeaders(response.rawHeaders),
+      headers: responseHeaders(response.rawHeaders, plan.secretValues),
       cookies: responseCookies(response.headers),
       redirects,
       bodyPreview: text

@@ -54,6 +54,11 @@ const detail: SavedRequestDetail = {
   tags: [],
   queryParameters: [],
   headers: [],
+  requestVariables: [],
+  availableEnvironments: {
+    workspace: [{ id: "d47ac10b-58cc-4372-a567-0e02b2c3d479", name: "Local" }],
+    project: [],
+  },
   body: { type: "none", content: null, contentType: null, metadata: {} },
   settings: {
     timeoutMs: 30_000,
@@ -126,6 +131,84 @@ describe("RequestEditor", () => {
       />,
     );
     expect(await screen.findByText("Saved request not found.")).toBeVisible();
+  });
+
+  it("previews variable origins while keeping secret values masked", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => structuredClone(detail),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          preview: {
+            method: "GET",
+            url: "https://api.test/facts",
+            queryParameters: [],
+            headers: [
+              {
+                name: "Authorization",
+                value: "Bearer ••••••••",
+                enabled: true,
+                secret: true,
+              },
+            ],
+            cookies: [],
+            body: {
+              type: "none",
+              content: null,
+              contentType: null,
+              secret: false,
+            },
+          },
+          variables: [
+            {
+              name: "token",
+              preview: "••••••••",
+              secret: true,
+              origin: "runtime",
+              originLabel: "Temporary runtime override",
+              unresolved: [],
+              errors: [],
+            },
+          ],
+          unresolved: [],
+          errors: [],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(updateSavedRequestAction).mockResolvedValue({
+      ok: true,
+      data: undefined,
+    });
+
+    render(
+      <RequestEditor
+        folders={[]}
+        onDelete={vi.fn()}
+        onNotice={vi.fn()}
+        onRefresh={vi.fn()}
+        onSelectRequest={vi.fn()}
+        requestId={detail.id}
+      />,
+    );
+    await screen.findByLabelText("Request URL");
+    await user.click(screen.getByRole("button", { name: "Variables" }));
+    await user.click(
+      screen.getAllByRole("button", { name: "Add variable" })[1]!,
+    );
+    await user.type(screen.getByLabelText("Variable name 1"), "token");
+    await user.type(screen.getByLabelText("Variable value 1"), "super-secret");
+    await user.click(
+      screen.getByRole("button", { name: "Preview resolved request" }),
+    );
+
+    expect(await screen.findByText("https://api.test/facts")).toBeVisible();
+    expect(screen.getByText("••••••••")).toBeVisible();
+    expect(screen.queryByText("super-secret")).not.toBeInTheDocument();
   });
 });
 

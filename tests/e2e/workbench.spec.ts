@@ -4,6 +4,7 @@ const runId = Date.now().toString(36);
 const workspaceName = `E2E Work ${runId}`;
 const projectName = `Project ${runId}`;
 const requestName = `Get fact ${runId}`;
+const environmentName = `Local ${runId}`;
 
 test.describe.serial("workspace and project management", () => {
   test("creates and persists a workspace, project, and nested folders", async ({
@@ -93,7 +94,7 @@ test.describe.serial("workspace and project management", () => {
     await page.getByLabel("Field 1 name").fill("limit");
     await page.getByLabel("Field 1 value").fill("20");
 
-    await page.getByRole("button", { name: "Headers" }).click();
+    await page.getByRole("button", { name: "Headers", exact: true }).click();
     await page.getByRole("button", { name: "Add row" }).click();
     await page.getByLabel("Field 1 name").fill("X-Test");
     await page.getByLabel("Field 1 value").fill("phase-3");
@@ -122,5 +123,76 @@ test.describe.serial("workspace and project management", () => {
     await page.getByRole("button", { name: /Send/ }).click();
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByText("REQUEST_CANCELLED")).toBeVisible();
+  });
+
+  test("manages environments and resolves masked runtime variables", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Workspace variables" }).click();
+    await page.getByRole("button", { name: "New environment" }).click();
+    await page.getByLabel("Name").fill(environmentName);
+    await page
+      .getByLabel("Description")
+      .fill("Local variables for the end-to-end mock API");
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    await expect(page.getByText("Environment created.")).toBeVisible();
+
+    await page.getByRole("button", { name: environmentName }).click();
+    await page.getByRole("button", { name: "Add variable" }).click();
+    await page.getByLabel("Variable name 1").fill("baseUrl");
+    await page.getByLabel("Variable value 1").fill("http://127.0.0.1:3201");
+    await page.getByRole("button", { name: "Save variables" }).click();
+    await expect(page.getByText("Variables saved.")).toBeVisible();
+    await page.getByRole("button", { name: "Close variable manager" }).click();
+
+    await page.getByText(requestName, { exact: true }).click();
+    await page.getByLabel("Request URL").fill("{{baseUrl}}/{{resourcePath}}");
+    await page.getByRole("button", { name: "Headers 1", exact: true }).click();
+    await page.getByLabel("Field 1 value").fill("{{runtimeToken}}");
+    await page.getByRole("button", { name: "Variables", exact: true }).click();
+    await page.getByLabel("Workspace environment").selectOption({
+      label: environmentName,
+    });
+
+    const requestVariables = page
+      .getByRole("heading", { name: "Request variables" })
+      .locator("..");
+    await requestVariables
+      .getByRole("button", { name: "Add variable" })
+      .click();
+    await requestVariables.getByLabel("Variable name 1").fill("resourcePath");
+    await requestVariables.getByLabel("Variable value 1").fill("facts");
+
+    const runtimeVariables = page
+      .getByRole("heading", { name: "Temporary runtime overrides" })
+      .locator("..");
+    await runtimeVariables
+      .getByRole("button", { name: "Add variable" })
+      .click();
+    await runtimeVariables.getByLabel("Variable name 1").fill("runtimeToken");
+    await runtimeVariables.getByLabel("Variable value 1").fill("e2e-secret");
+
+    await page
+      .getByRole("button", { name: "Preview resolved request" })
+      .click();
+    await expect(page.getByText("http://127.0.0.1:3201/facts")).toBeVisible();
+    await expect(
+      page.getByText("Temporary runtime override", { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("••••••••")).toBeVisible();
+
+    await page.getByRole("button", { name: /Send/ }).click();
+    await expect(page.getByText("200 OK")).toBeVisible();
+    await expect(page.getByText(/Honey never spoils/)).toBeVisible();
+    await expect(page.getByText(/e2e-secret/)).toHaveCount(0);
+
+    await page.reload();
+    await page.getByText(requestName, { exact: true }).click();
+    await page.getByRole("button", { name: /^Variables(?: \d+)?$/ }).click();
+    await expect(page.getByLabel("Workspace environment")).toHaveValue(/^.+$/);
+    await expect(requestVariables.getByLabel("Variable value 1")).toHaveValue(
+      "facts",
+    );
   });
 });

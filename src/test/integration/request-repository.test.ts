@@ -84,6 +84,14 @@ databaseDescribe("saved request repository", () => {
           secret: true,
         },
       ],
+      requestVariables: [
+        {
+          name: "topic",
+          value: "space",
+          enabled: true,
+          secret: false,
+        },
+      ],
       body: {
         type: "json",
         content: '{"topic":"space"}',
@@ -111,6 +119,7 @@ databaseDescribe("saved request repository", () => {
       tags: ["facts"],
       queryParameters: [{ name: "limit", value: "20", enabled: true }],
       headers: [{ name: "Authorization", secret: true }],
+      requestVariables: [{ name: "topic", value: "space" }],
       body: { type: "json", content: '{"topic":"space"}' },
     });
 

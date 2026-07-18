@@ -6,9 +6,9 @@ for developers who want the structure of a project workspace without tying
 their API collections to a Git repository or a hosted account.
 
 > Workbench is under active development. Workspace organisation, saved request
-> editing, server-side execution, response inspection, and bounded history are
-> functional; later product areas are delivered through the numbered phase
-> issues.
+> editing, scoped environments and variables, server-side execution, response
+> inspection, and bounded history are functional; later product areas are
+> delivered through the numbered phase issues.
 
 ## Why Workbench
 
@@ -37,11 +37,13 @@ their API collections to a Git repository or a hosted account.
 The interface reads workspaces, projects, nested folders, saved requests,
 execution counts, and active-workspace selection from PostgreSQL. The request
 editor persists query parameters, headers, cookies, all planned body modes, and
-per-request safety settings. Server-side execution supports cancellation and a
-response viewer for formatted/raw bodies, headers, redacted cookies, timing,
-request snapshots, downloads, and history. Documentation screenshots are
-captured from the real application with generic data and must never contain
-secrets.
+per-request safety settings. Workspace and project variable managers provide
+reusable environments, secret masking, request overrides, temporary one-run
+values, and a provenance-aware resolution preview. Server-side execution
+supports cancellation and a response viewer for formatted/raw bodies, headers,
+redacted cookies, timing, request snapshots, downloads, and history.
+Documentation screenshots are captured from the real application with generic
+data and must never contain secrets.
 
 ## Quick start
 

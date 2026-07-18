@@ -36,6 +36,14 @@ vi.mock("@/features/workspaces/actions", () => ({
   updateWorkspaceAction: vi.fn(),
 }));
 
+vi.mock("@/features/variables/actions", () => ({
+  createEnvironmentAction: vi.fn(),
+  deleteEnvironmentAction: vi.fn(),
+  duplicateEnvironmentAction: vi.fn(),
+  saveVariableScopeAction: vi.fn(),
+  updateEnvironmentAction: vi.fn(),
+}));
+
 describe("WorkbenchShell", () => {
   it("guides an empty installation into workspace creation", async () => {
     const user = userEvent.setup();

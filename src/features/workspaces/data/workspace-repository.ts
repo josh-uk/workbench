@@ -15,6 +15,7 @@ import {
 import { getDatabase } from "@/db/client";
 import {
   applicationSettings,
+  environments,
   folders,
   projects,
   requestBodies,
@@ -22,8 +23,10 @@ import {
   requestHeaders,
   requestQueryParameters,
   savedRequests,
+  variables,
   workspaces,
 } from "@/db/schema";
+import { parseRequestSettings } from "@/features/requests/domain";
 import {
   buildFolderTree,
   createCopyName,
@@ -252,6 +255,8 @@ async function copyProjectRequests(
   sourceProjectId: string,
   targetProjectId: string,
   folderIds: ReadonlyMap<string, string>,
+  projectEnvironmentIds: ReadonlyMap<string, string> = new Map(),
+  workspaceEnvironmentIds?: ReadonlyMap<string, string>,
 ) {
   const sourceRequests = await executor
     .select()
@@ -260,6 +265,15 @@ async function copyProjectRequests(
     .orderBy(asc(savedRequests.position), asc(savedRequests.name));
 
   for (const source of sourceRequests) {
+    const settings = parseRequestSettings(source.settings);
+    const workspaceEnvironmentId = settings.workspaceEnvironmentId
+      ? workspaceEnvironmentIds
+        ? (workspaceEnvironmentIds.get(settings.workspaceEnvironmentId) ?? null)
+        : settings.workspaceEnvironmentId
+      : null;
+    const projectEnvironmentId = settings.projectEnvironmentId
+      ? (projectEnvironmentIds.get(settings.projectEnvironmentId) ?? null)
+      : null;
     const [copy] = await executor
       .insert(savedRequests)
       .values({
@@ -273,25 +287,39 @@ async function copyProjectRequests(
         url: source.url,
         position: source.position,
         tags: source.tags,
-        settings: source.settings,
+        settings: {
+          ...settings,
+          workspaceEnvironmentId,
+          projectEnvironmentId,
+        },
       })
       .returning({ id: savedRequests.id });
     if (!copy) continue;
 
-    const [headers, queryParameters, bodies] = await Promise.all([
-      executor
-        .select()
-        .from(requestHeaders)
-        .where(eq(requestHeaders.requestId, source.id)),
-      executor
-        .select()
-        .from(requestQueryParameters)
-        .where(eq(requestQueryParameters.requestId, source.id)),
-      executor
-        .select()
-        .from(requestBodies)
-        .where(eq(requestBodies.requestId, source.id)),
-    ]);
+    const [headers, queryParameters, bodies, requestVariables] =
+      await Promise.all([
+        executor
+          .select()
+          .from(requestHeaders)
+          .where(eq(requestHeaders.requestId, source.id)),
+        executor
+          .select()
+          .from(requestQueryParameters)
+          .where(eq(requestQueryParameters.requestId, source.id)),
+        executor
+          .select()
+          .from(requestBodies)
+          .where(eq(requestBodies.requestId, source.id)),
+        executor
+          .select()
+          .from(variables)
+          .where(
+            and(
+              eq(variables.scope, "request"),
+              eq(variables.requestId, source.id),
+            ),
+          ),
+      ]);
     if (headers.length) {
       await executor.insert(requestHeaders).values(
         headers.map((header) => ({
@@ -325,7 +353,159 @@ async function copyProjectRequests(
         metadata: body.metadata,
       });
     }
+    if (requestVariables.length) {
+      await executor.insert(variables).values(
+        requestVariables.map((variable) => ({
+          requestId: copy.id,
+          scope: "request" as const,
+          name: variable.name,
+          value: variable.value,
+          secret: variable.secret,
+          enabled: variable.enabled,
+        })),
+      );
+    }
   }
+}
+
+async function copyEnvironmentVariables(
+  executor: QueryExecutor,
+  sourceEnvironmentId: string,
+  targetEnvironmentId: string,
+  scope: "workspace_environment" | "project_environment",
+) {
+  const rows = await executor
+    .select()
+    .from(variables)
+    .where(eq(variables.environmentId, sourceEnvironmentId));
+  if (rows.length) {
+    await executor.insert(variables).values(
+      rows.map((variable) => ({
+        environmentId: targetEnvironmentId,
+        scope,
+        name: variable.name,
+        value: variable.value,
+        secret: variable.secret,
+        enabled: variable.enabled,
+      })),
+    );
+  }
+}
+
+async function copyWorkspaceConfiguration(
+  executor: QueryExecutor,
+  sourceWorkspaceId: string,
+  targetWorkspaceId: string,
+) {
+  const [workspaceVariables, workspaceEnvironments] = await Promise.all([
+    executor
+      .select()
+      .from(variables)
+      .where(
+        and(
+          eq(variables.scope, "workspace"),
+          eq(variables.workspaceId, sourceWorkspaceId),
+        ),
+      ),
+    executor
+      .select()
+      .from(environments)
+      .where(
+        and(
+          eq(environments.workspaceId, sourceWorkspaceId),
+          isNull(environments.projectId),
+        ),
+      ),
+  ]);
+  if (workspaceVariables.length) {
+    await executor.insert(variables).values(
+      workspaceVariables.map((variable) => ({
+        workspaceId: targetWorkspaceId,
+        scope: "workspace" as const,
+        name: variable.name,
+        value: variable.value,
+        secret: variable.secret,
+        enabled: variable.enabled,
+      })),
+    );
+  }
+  const environmentIds = new Map<string, string>();
+  for (const source of workspaceEnvironments) {
+    const [copy] = await executor
+      .insert(environments)
+      .values({
+        workspaceId: targetWorkspaceId,
+        projectId: null,
+        name: source.name,
+        description: source.description,
+      })
+      .returning({ id: environments.id });
+    if (!copy) continue;
+    environmentIds.set(source.id, copy.id);
+    await copyEnvironmentVariables(
+      executor,
+      source.id,
+      copy.id,
+      "workspace_environment",
+    );
+  }
+  return environmentIds;
+}
+
+async function copyProjectConfiguration(
+  executor: QueryExecutor,
+  sourceProjectId: string,
+  targetProjectId: string,
+  targetWorkspaceId: string,
+) {
+  const [projectVariables, projectEnvironments] = await Promise.all([
+    executor
+      .select()
+      .from(variables)
+      .where(
+        and(
+          eq(variables.scope, "project"),
+          eq(variables.projectId, sourceProjectId),
+        ),
+      ),
+    executor
+      .select()
+      .from(environments)
+      .where(eq(environments.projectId, sourceProjectId)),
+  ]);
+  if (projectVariables.length) {
+    await executor.insert(variables).values(
+      projectVariables.map((variable) => ({
+        projectId: targetProjectId,
+        scope: "project" as const,
+        name: variable.name,
+        value: variable.value,
+        secret: variable.secret,
+        enabled: variable.enabled,
+      })),
+    );
+  }
+  const environmentIds = new Map<string, string>();
+  for (const source of projectEnvironments) {
+    const [copy] = await executor
+      .insert(environments)
+      .values({
+        workspaceId: targetWorkspaceId,
+        projectId: targetProjectId,
+        name: source.name,
+        description: source.description,
+      })
+      .returning({ id: environments.id });
+    if (!copy) continue;
+    environmentIds.set(source.id, copy.id);
+    await copyEnvironmentVariables(
+      executor,
+      source.id,
+      copy.id,
+      "project_environment",
+    );
+  }
+  return environmentIds;
 }
 
 export async function getWorkbenchNavigation(): Promise<WorkbenchNavigation> {
@@ -527,6 +707,12 @@ export async function duplicateWorkspace(id: string) {
     if (!workspace)
       throw new WorkspaceDomainError("Workspace could not be duplicated.");
 
+    const workspaceEnvironmentIds = await copyWorkspaceConfiguration(
+      transaction,
+      source.id,
+      workspace.id,
+    );
+
     const sourceProjects = await transaction
       .select()
       .from(projects)
@@ -546,6 +732,12 @@ export async function duplicateWorkspace(id: string) {
         .returning({ id: projects.id });
 
       if (project) {
+        const projectEnvironmentIds = await copyProjectConfiguration(
+          transaction,
+          sourceProject.id,
+          project.id,
+          workspace.id,
+        );
         const folderIds = await copyFolderHierarchy(
           transaction,
           sourceProject.id,
@@ -556,6 +748,8 @@ export async function duplicateWorkspace(id: string) {
           sourceProject.id,
           project.id,
           folderIds,
+          projectEnvironmentIds,
+          workspaceEnvironmentIds,
         );
       }
     }
@@ -656,7 +850,19 @@ export async function duplicateProject(id: string) {
       source.id,
       project.id,
     );
-    await copyProjectRequests(transaction, source.id, project.id, folderIds);
+    const projectEnvironmentIds = await copyProjectConfiguration(
+      transaction,
+      source.id,
+      project.id,
+      source.workspaceId,
+    );
+    await copyProjectRequests(
+      transaction,
+      source.id,
+      project.id,
+      folderIds,
+      projectEnvironmentIds,
+    );
     return project;
   });
 }

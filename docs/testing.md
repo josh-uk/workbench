@@ -27,6 +27,13 @@ server. Browser tests start a separate deterministic mock API and cover request
 creation, persistence, execution, response/history inspection, and cancellation
 without public network access.
 
+Variable unit tests cover precedence, recursive interpolation, empty and
+unresolved values, cycle detection, provenance, and secret taint. Repository
+tests cover scope ownership, environment CRUD/duplication, selection validation
+and cleanup, and deep-copy remapping. Component and Chromium flows verify masked
+previews, temporary overrides, environment selection, real execution, and reload
+persistence without exposing the secret echoed by the mock server.
+
 CI runs formatting, linting, strict type checking, unit coverage, component
 tests, migration checks, integration tests, a production build, Playwright,
 container build, and a high-severity dependency audit. Failure artifacts include

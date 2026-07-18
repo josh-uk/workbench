@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { ProjectOverview } from "./project-overview";
 import { RequestEditor } from "./request-editor";
 import { RequestNavigationItem } from "./request-navigation";
+import { VariableManager } from "./variable-manager";
 import {
   DeleteDialog,
   EntityEditorDialog,
@@ -83,6 +84,9 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
+  const [configurationView, setConfigurationView] = useState<{
+    projectId?: string;
+  } | null>(null);
   const [notice, setNotice] = useState<{
     tone: "success" | "error";
     text: string;
@@ -240,6 +244,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
       }
       setSelectedProjectId(projectId);
       setSelectedRequestId(result.data.id);
+      setConfigurationView(null);
       setNotice({ tone: "success", text: "Request created." });
       router.refresh();
     });
@@ -342,7 +347,17 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
           </div>
           <div className="flex-1 overflow-auto px-2 py-3">
             <div className="mb-4 space-y-0.5">
-              <NavigationItem icon={Variable} label="Workspace variables" />
+              <NavigationItem
+                active={Boolean(
+                  configurationView && !configurationView.projectId,
+                )}
+                icon={Variable}
+                label="Workspace variables"
+                onClick={() => {
+                  setSelectedRequestId(null);
+                  setConfigurationView({});
+                }}
+              />
               <NavigationItem icon={KeyRound} label="Authentication profiles" />
               <NavigationItem icon={Import} label="Imported definitions" />
               <NavigationItem icon={Workflow} label="Workflows" />
@@ -385,6 +400,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                       onClick={() => {
                         setSelectedProjectId(project.id);
                         setSelectedRequestId(null);
+                        setConfigurationView(null);
                       }}
                       type="button"
                     >
@@ -441,7 +457,10 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                             runMutation={runMutation}
                             selected={request.id === activeRequestId}
                             setDeleteState={setDeleteState}
-                            setSelectedRequestId={setSelectedRequestId}
+                            setSelectedRequestId={(id) => {
+                              setConfigurationView(null);
+                              setSelectedRequestId(id);
+                            }}
                           />
                         ))}
                       {project.folders.length ? (
@@ -455,7 +474,10 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                           selectedRequestId={activeRequestId}
                           setDeleteState={setDeleteState}
                           setEditor={setEditor}
-                          setSelectedRequestId={setSelectedRequestId}
+                          setSelectedRequestId={(id) => {
+                            setConfigurationView(null);
+                            setSelectedRequestId(id);
+                          }}
                         />
                       ) : (
                         <button
@@ -544,7 +566,18 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
         </aside>
 
         {activeWorkspace ? (
-          activeRequestId && selectedProject ? (
+          configurationView ? (
+            <VariableManager
+              key={`${activeWorkspace.id}:${configurationView.projectId ?? "workspace"}`}
+              onClose={() => setConfigurationView(null)}
+              project={
+                configurationView.projectId && selectedProject
+                  ? { id: selectedProject.id, name: selectedProject.name }
+                  : undefined
+              }
+              workspace={{ id: activeWorkspace.id, name: activeWorkspace.name }}
+            />
+          ) : activeRequestId && selectedProject ? (
             <RequestEditor
               folders={selectedProject.folders}
               key={activeRequestId}
@@ -553,12 +586,20 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
               }
               onNotice={(tone, text) => setNotice({ tone, text })}
               onRefresh={() => router.refresh()}
-              onSelectRequest={setSelectedRequestId}
+              onSelectRequest={(id) => {
+                setConfigurationView(null);
+                setSelectedRequestId(id);
+              }}
               requestId={activeRequestId}
             />
           ) : (
             <ProjectOverview
               onCreateRequest={createRequest}
+              onManageVariables={(project) => {
+                setSelectedProjectId(project.id);
+                setSelectedRequestId(null);
+                setConfigurationView({ projectId: project.id });
+              }}
               project={selectedProject}
               setEditor={setEditor}
             />

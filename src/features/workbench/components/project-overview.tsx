@@ -8,6 +8,7 @@ import {
   Network,
   Plus,
   Send,
+  Variable,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,10 +23,12 @@ export function ProjectOverview({
   project,
   setEditor,
   onCreateRequest,
+  onManageVariables,
 }: {
   project: ProjectNavigation | undefined;
   setEditor: (state: EditorState) => void;
   onCreateRequest: (projectId: string, folderId: string | null) => void;
+  onManageVariables: (project: { id: string; name: string }) => void;
 }) {
   if (!project) {
     return (
@@ -81,6 +84,12 @@ export function ProjectOverview({
               variant="secondary"
             >
               <Plus aria-hidden="true" className="size-4" /> New folder
+            </Button>
+            <Button
+              onClick={() => onManageVariables(project)}
+              variant="secondary"
+            >
+              <Variable aria-hidden="true" className="size-4" /> Variables
             </Button>
           </div>
         </div>

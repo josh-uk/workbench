@@ -42,3 +42,11 @@ npm run test:integration
 - Generate and commit forward-only migrations for schema changes.
 - Update architecture and operator documentation with behavior changes.
 - Run `npm run check` and the affected integration/e2e suites.
+
+## Dependency policy
+
+Use current stable releases and commit the npm lockfile. If an absolute-latest
+major violates peer ranges in the latest Next.js toolchain, use the newest
+compatible stable release rather than committing an invalid dependency tree.
+`npm ls --depth=0`, the production build, the full test matrix, and `npm audit`
+must all pass after dependency changes.

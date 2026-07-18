@@ -20,6 +20,9 @@ import {
   executeHttpRequest,
   safeDisplayUrl,
 } from "@/features/requests/execution/http-engine";
+import { getVariableDefinitionsForRequest } from "@/features/variables/data/variable-repository";
+import { VariableDomainError } from "@/features/variables/domain";
+import { resolveRequestPlan } from "@/features/variables/resolution";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +37,7 @@ export async function POST(
     const input = executeSavedRequestSchema.parse(await request.json());
     executionId = input.executionId;
     const saved = await getSavedRequestDetail(requestId);
-    const plan = {
+    const sourcePlan = {
       id: saved.id,
       projectId: saved.projectId,
       method: saved.method,
@@ -44,9 +47,83 @@ export async function POST(
       body: saved.body,
       settings: saved.settings,
     };
+    let resolution: ReturnType<typeof resolveRequestPlan>;
+    try {
+      const definitions = await getVariableDefinitionsForRequest({
+        requestId: saved.id,
+        workspaceEnvironmentId: saved.settings.workspaceEnvironmentId,
+        projectEnvironmentId: saved.settings.projectEnvironmentId,
+        runtimeVariables: input.runtimeVariables,
+      });
+      resolution = resolveRequestPlan(sourcePlan, definitions);
+    } catch (error) {
+      const domainError =
+        error instanceof VariableDomainError
+          ? error
+          : new VariableDomainError("Variables could not be resolved.");
+      await createExecutionRecord({
+        id: executionId,
+        projectId: saved.projectId,
+        requestId: saved.id,
+        method: saved.method,
+        resolvedUrl: saved.url,
+        requestSnapshot: {
+          method: saved.method,
+          url: saved.url,
+          variableResolution: { error: domainError.message },
+        },
+      });
+      await failExecution(
+        executionId,
+        { code: domainError.code, message: domainError.message },
+        false,
+      );
+      return NextResponse.json(await getExecutionDetail(executionId));
+    }
+
+    if (resolution.unresolved.length || resolution.errors.length) {
+      const message =
+        resolution.errors[0]?.message ??
+        `Unresolved variables: ${resolution.unresolved.join(", ")}.`;
+      await createExecutionRecord({
+        id: executionId,
+        projectId: saved.projectId,
+        requestId: saved.id,
+        method: saved.method,
+        resolvedUrl: resolution.preview.url,
+        requestSnapshot: {
+          method: saved.method,
+          url: resolution.preview.url,
+          headers: resolution.preview.headers,
+          variableResolution: {
+            unresolved: resolution.unresolved,
+            errors: resolution.errors,
+          },
+        },
+      });
+      await failExecution(
+        executionId,
+        {
+          code: resolution.errors[0]?.code ?? "VARIABLE_UNRESOLVED",
+          message,
+        },
+        false,
+      );
+      return NextResponse.json(await getExecutionDetail(executionId));
+    }
+
+    const plan = resolution.plan;
     let snapshot: Record<string, unknown>;
     try {
-      snapshot = createRequestSnapshot(plan);
+      snapshot = {
+        ...createRequestSnapshot(plan),
+        variables: resolution.variables.map((variable) => ({
+          name: variable.name,
+          value: variable.preview,
+          origin: variable.originLabel,
+          secret: variable.secret,
+        })),
+      };
     } catch (error) {
       const domainError =
         error instanceof RequestDomainError
@@ -107,7 +184,8 @@ export async function POST(
   } catch (error) {
     if (executionId) unregisterExecution(executionId);
     const message =
-      error instanceof RequestDomainError
+      error instanceof RequestDomainError ||
+      error instanceof VariableDomainError
         ? error.message
         : error instanceof Error
           ? error.message
