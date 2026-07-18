@@ -66,9 +66,15 @@ requests; extracted runtime values reference both their definition and source
 execution. Secret values are masked at every browser and history boundary, but
 the local database remains part of the documented trust boundary.
 
-Imported definitions retain the original source document and structured
-operation records. Custom saved requests are separate records, so refreshing an
-import cannot silently overwrite them.
+Imported definitions retain the original source document, source hash/type/URL,
+version metadata, and structured server, security, schema, tag, and option
+metadata. Imported operations retain their parsed snapshot and operation hash,
+plus an optional unique link to the generated saved request and the hash of its
+last generated state. Comparing that hash with the live request detects editor
+customization. Import runs keep the exact source document/hash, selected change
+set, summary, and warnings for initial imports and refreshes. Detaching a request
+clears its operation link without deleting either record, so refreshing an
+import cannot silently overwrite a custom request.
 
 Response metadata stores bounded previews and structured headers, timing, and
 redirect data. Large binary bodies will use explicit retention rules rather than

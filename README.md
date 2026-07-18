@@ -46,7 +46,10 @@ refresh, field-level project overrides, and saved token requests. Named JSONPath
 outputs feed later requests as generated variables with expiry and secret
 redaction. Server-side execution supports cancellation and a response viewer for
 formatted/raw bodies, headers, redacted cookies, outputs, timing, request
-snapshots, downloads, and history.
+snapshots, downloads, and history. OpenAPI 3.x JSON/YAML imports provide a
+read-only preview, operation/tag selection, executable generated requests,
+security and server-variable mapping, selective refresh diffs, and explicit
+custom-request protection.
 Documentation screenshots are captured from the real application with generic
 data and must never contain secrets.
 
@@ -145,8 +148,9 @@ Next.js application
 ```
 
 See [Architecture](docs/architecture.md), [Data model](docs/data-model.md),
-[Workspace management](docs/workspace-management.md), and
-[Request execution](docs/request-execution.md).
+[Workspace management](docs/workspace-management.md),
+[Request execution](docs/request-execution.md), and
+[OpenAPI import](docs/openapi-import.md).
 
 ## Testing and security
 

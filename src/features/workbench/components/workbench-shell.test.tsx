@@ -50,6 +50,18 @@ vi.mock("@/features/authentication/actions", () => ({
   saveAuthProfileAction: vi.fn(),
 }));
 
+vi.mock("@/features/openapi/actions", () => ({
+  applyOpenApiRefreshAction: vi.fn(),
+  detachImportedRequestAction: vi.fn(),
+  executeOpenApiImportAction: vi.fn(),
+  listImportedDefinitionsAction: vi.fn().mockResolvedValue({
+    ok: true,
+    data: [],
+  }),
+  previewOpenApiImportAction: vi.fn(),
+  previewOpenApiRefreshAction: vi.fn(),
+}));
+
 describe("WorkbenchShell", () => {
   it("guides an empty installation into workspace creation", async () => {
     const user = userEvent.setup();

@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { detachImportedRequestAction } from "@/features/openapi/actions";
 import { updateSavedRequestAction } from "@/features/requests/actions";
 import type {
   ExecutionDetail,
@@ -14,6 +15,10 @@ import { ResponseViewer } from "./response-viewer";
 vi.mock("@/features/requests/actions", () => ({
   duplicateSavedRequestAction: vi.fn(),
   updateSavedRequestAction: vi.fn(),
+}));
+
+vi.mock("@/features/openapi/actions", () => ({
+  detachImportedRequestAction: vi.fn(),
 }));
 
 const execution: ExecutionDetail = {
@@ -80,6 +85,7 @@ const detail: SavedRequestDetail = {
     allowPrivateNetwork: false,
     cookies: [],
   },
+  importSource: null,
   history: [execution],
 };
 
@@ -195,6 +201,57 @@ describe("RequestEditor", () => {
       />,
     );
     expect(await screen.findByText("Saved request not found.")).toBeVisible();
+  });
+
+  it("shows imported provenance and detaches a request as custom", async () => {
+    const user = userEvent.setup();
+    const importedDetail: SavedRequestDetail = {
+      ...structuredClone(detail),
+      importSource: {
+        definitionId: "e47ac10b-58cc-4372-a567-0e02b2c3d479",
+        definitionName: "Facts API",
+        sourceKey: "GET /facts",
+        customized: false,
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => importedDetail,
+      }),
+    );
+    vi.mocked(detachImportedRequestAction).mockResolvedValue({
+      ok: true,
+      data: undefined,
+    });
+    const onNotice = vi.fn();
+
+    render(
+      <RequestEditor
+        folders={[]}
+        onDelete={vi.fn()}
+        onNotice={onNotice}
+        onRefresh={vi.fn()}
+        onSelectRequest={vi.fn()}
+        requestId={detail.id}
+      />,
+    );
+
+    expect(await screen.findByText("Facts API")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Save as custom request" }),
+    );
+    await waitFor(() =>
+      expect(detachImportedRequestAction).toHaveBeenCalledWith({
+        requestId: detail.id,
+      }),
+    );
+    expect(screen.queryByText("Facts API")).not.toBeInTheDocument();
+    expect(onNotice).toHaveBeenCalledWith(
+      "success",
+      expect.stringContaining("Future OpenAPI refreshes will not change it"),
+    );
   });
 
   it("previews variable origins while keeping secret values masked", async () => {

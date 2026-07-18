@@ -60,6 +60,15 @@ is still masked. The executor uses Node HTTP/HTTPS sockets with validated,
 pinned DNS addresses so browser CORS behavior and DNS rebinding do not control
 outbound security. The browser receives only bounded request and execution DTOs.
 
+OpenAPI import follows a preview/execute split. A bounded parser produces a
+framework-independent definition and generated-request plan without mutating
+data. Validated Server Actions pass approved selections to a server-only
+repository, which writes the definition, folders, profiles, variables, requests,
+operation links, and audit run in one transaction. URL sources share the pinned
+DNS and redirect policy used by execution. Refresh diffs compare stored
+operation and generated-request hashes, allowing selective changes while
+preserving editor-customized or explicitly detached requests.
+
 ## Data flow
 
 1. The browser submits validated user intent to a server endpoint.

@@ -42,6 +42,15 @@ publishes a secret expiring output, selects it through a request-derived profile
 sends an authenticated request twice, and verifies that the token request ran
 once without its value appearing in the UI or screenshots.
 
+OpenAPI unit tests cover safe JSON/YAML parsing, generated parameters and bodies,
+server variables, security mapping, hostile YAML limits, and detailed refresh
+diffs. Integration tests cover first-class persistence, rename/replace/skip
+conflicts, selective refresh, generated-request customization, variable
+preservation, detachment, private-source opt-in, redirect revalidation, metadata
+blocking, and source size/protocol limits. The Chromium flow imports a pasted
+OpenAPI 3.1 operation and executes the generated request against the local mock
+API.
+
 CI runs formatting, linting, strict type checking, unit coverage, component
 tests, migration checks, integration tests, a production build, Playwright,
 container build, and a high-severity dependency audit. Failure artifacts include

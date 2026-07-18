@@ -15,6 +15,13 @@
       "when": 1784382655525,
       "tag": "0001_equal_prima",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784388234726,
+      "tag": "0002_unique_jackal",
+      "breakpoints": true
     }
   ]
 }
