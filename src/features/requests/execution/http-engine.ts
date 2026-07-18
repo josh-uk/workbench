@@ -473,7 +473,8 @@ export async function executeHttpRequest(
   const controller = new AbortController();
   let timedOut = false;
   const cancel = () => controller.abort(externalSignal.reason);
-  externalSignal.addEventListener("abort", cancel, { once: true });
+  if (externalSignal.aborted) cancel();
+  else externalSignal.addEventListener("abort", cancel, { once: true });
   const timeout = setTimeout(() => {
     timedOut = true;
     controller.abort(new Error("Request timed out."));
