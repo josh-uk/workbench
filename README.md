@@ -8,8 +8,8 @@ their API collections to a Git repository or a hosted account.
 > Workbench is under active development. Workspace organisation, saved request
 > editing, scoped environments and variables, reusable authentication, request
 > outputs, server-side execution, response inspection, bounded history, ordered
-> workflows, and no-code assertions are functional; later product areas are
-> delivered through the numbered phase issues.
+> workflows, no-code assertions, and versioned backup/restore are functional;
+> release polish is delivered through the remaining numbered phase issue.
 
 ## Why Workbench
 
@@ -62,6 +62,11 @@ Each step can override runtime variables, add step-only assertions, stop or
 continue after failure, and pass generated outputs to later steps. Request and
 workflow reports retain individual assertion results without recording actual
 matched values.
+The Settings view exports workspaces and projects as versioned ZIP archives,
+imports them with remapped IDs, creates full logical backups, restores full
+backups atomically, and configures automatic backup and request-history
+retention. Secret values are excluded unless encrypted or explicitly exported
+as plain text.
 Documentation screenshots are captured from the real application with generic
 data and must never contain secrets.
 
@@ -86,9 +91,9 @@ Stop the stack without deleting persisted data:
 docker compose down
 ```
 
-The `workbench_postgres_data` named volume preserves PostgreSQL data across
-restarts. Deleting that volume is destructive and is intentionally not part of
-the normal shutdown command.
+The `workbench_postgres_data` and `workbench_backups` named volumes preserve
+PostgreSQL data and logical backups across restarts. Deleting either volume is
+destructive and is intentionally not part of the normal shutdown command.
 
 ## Local development
 
@@ -110,14 +115,16 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 ### Environment variables
 
-| Name                | Purpose                               | Default in Compose                   |
-| ------------------- | ------------------------------------- | ------------------------------------ |
-| `DATABASE_URL`      | Server-only PostgreSQL connection URL | Generated from the PostgreSQL values |
-| `POSTGRES_DB`       | Local database name                   | `workbench`                          |
-| `POSTGRES_USER`     | Local database user                   | `workbench`                          |
-| `POSTGRES_PASSWORD` | Local database password               | `workbench`                          |
-| `POSTGRES_PORT`     | Loopback-only database port           | `5432`                               |
-| `APP_PORT`          | Host port mapped to the app           | `3000`                               |
+| Name                        | Purpose                                        | Default in Compose                   |
+| --------------------------- | ---------------------------------------------- | ------------------------------------ |
+| `DATABASE_URL`              | Server-only PostgreSQL connection URL          | Generated from the PostgreSQL values |
+| `POSTGRES_DB`               | Local database name                            | `workbench`                          |
+| `POSTGRES_USER`             | Local database user                            | `workbench`                          |
+| `POSTGRES_PASSWORD`         | Local database password                        | `workbench`                          |
+| `POSTGRES_PORT`             | Loopback-only database port                    | `5432`                               |
+| `APP_PORT`                  | Host port mapped to the app                    | `3000`                               |
+| `WORKBENCH_BACKUP_DIR`      | Server-only logical backup directory           | `/backups`                           |
+| `WORKBENCH_BACKUP_PASSWORD` | Password for encrypted automatic backups (12+) | Empty                                |
 
 The Compose defaults are development-only credentials. Set unique values if the
 database is exposed beyond the local Docker network. Never use a `NEXT_PUBLIC_`
@@ -182,10 +189,10 @@ before exposing Workbench outside a trusted machine.
 
 ## Data export, backup, and upgrades
 
-Versioned export, automatic backup, restore, and upgrade workflows are tracked
-in Phase 9. Their committed design is documented in
-[Backup and restore](docs/backup-and-restore.md). Do not treat raw PostgreSQL
-volume copies from a running database as a supported backup.
+Versioned workspace/project export, import, automatic full backup, atomic
+restore, and retention are available from Settings. Their format and operational
+steps are documented in [Backup and restore](docs/backup-and-restore.md). Do not
+treat raw PostgreSQL volume copies from a running database as a supported backup.
 
 ## Container images and releases
 

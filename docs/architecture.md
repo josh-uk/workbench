@@ -87,6 +87,17 @@ side-effect-free core evaluator, while the workflow repository stores bounded
 run and step reports. The API route is deliberately thin so a future CLI or CI
 adapter can call the runner directly without restructuring the feature.
 
+Export and restore use a server-only logical repository over the complete
+Drizzle schema. The ZIP boundary validates paths, expanded sizes, version,
+checksums, record counts, and secret payloads before repository mutation.
+Scoped imports remap IDs and known embedded environment references. Full restore
+uses one transaction and orders workflow removal ahead of request cascades to
+honour restrictive foreign keys. The filesystem backup service generates every
+filename, verifies directory containment, writes atomically with owner-only
+permissions, and applies retention only to matching backup filenames. A
+production instrumentation scheduler invokes the same service as the settings
+UI; passwords remain environment-only.
+
 ## Data flow
 
 1. The browser submits validated user intent to a server endpoint.

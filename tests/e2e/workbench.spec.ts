@@ -465,4 +465,44 @@ test.describe.serial("workspace and project management", () => {
     ).toBeVisible();
     await expect(page.getByText(/Consumer received output/)).toBeVisible();
   });
+
+  test("exports, imports, and backs up project data", async ({ page }) => {
+    await page.goto("/");
+    await page
+      .locator("aside")
+      .getByRole("button", { name: "Settings", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Export, backup, and restore" }),
+    ).toBeVisible();
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export Core API" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(
+      /^workbench-project-core-api-.*\.zip$/,
+    );
+    const downloadPath = await download.path();
+    expect(downloadPath).toBeTruthy();
+
+    await page
+      .getByLabel("Workbench ZIP archive")
+      .setInputFiles(downloadPath as string);
+    await page.getByRole("button", { name: "Validate and import" }).click();
+    await expect(page.getByText(/Restored Core API copy/)).toBeVisible();
+
+    await page.getByLabel("Executions retained per project").fill("25");
+    await page.getByRole("button", { name: "Save settings" }).click();
+    await expect(
+      page.getByText("Backup and retention settings saved."),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Create backup now" }).click();
+    await expect(
+      page.getByText("Full backup created and retention applied."),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/workbench-backup-.*\.zip/).first(),
+    ).toBeVisible();
+  });
 });

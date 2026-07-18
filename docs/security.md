@@ -67,7 +67,7 @@ Marked values are password-masked in the normal editor and never returned in
 resolution previews, execution snapshots, resolved display URLs, or textual
 response history. Secret taint propagates through nested interpolation, and
 temporary runtime overrides are never persisted as configuration. Exports omit
-secrets by default when the export phase is implemented.
+secrets by default.
 
 Authentication profiles follow the same local trust model. Secret profile
 fields are replaced with a fixed placeholder in browser DTOs, and saving that
@@ -86,6 +86,17 @@ external reference loading. Persisted results contain pass/fail messages, never
 the actual matched header, JSONPath, or body value. Workflow runtime overrides
 follow the existing secret-taint path, and run reports expose only masked output
 values through their linked execution DTOs.
+
+Export archives accept only four generated top-level filenames and enforce
+compressed, per-file, and expanded size limits before parsing JSON. The manifest
+binds each payload with SHA-256 and record counts. Unknown columns are discarded;
+foreign-key or folder-cycle failures roll back the transaction. Default exports
+remove known credential fields plus potentially sensitive import sources,
+request snapshots, response previews, and stored errors. Encrypted secret
+payloads use scrypt and AES-256-GCM. Plain-text mode is opt-in and visibly
+warned. Backup paths are generated and contained beneath the configured
+directory; symlinks are not restored, files use `0600`, and retention deletes
+only names matching the generated backup pattern.
 
 ## Dependencies and images
 
