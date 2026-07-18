@@ -5,9 +5,10 @@ reusable authentication, OpenAPI imports, and developer workflows. It is built
 for developers who want the structure of a project workspace without tying
 their API collections to a Git repository or a hosted account.
 
-> Workbench is under active development. Workspace, project, and folder
-> management are functional; later product areas are delivered through the
-> numbered phase issues.
+> Workbench is under active development. Workspace organisation, saved request
+> editing, server-side execution, response inspection, and bounded history are
+> functional; later product areas are delivered through the numbered phase
+> issues.
 
 ## Why Workbench
 
@@ -33,11 +34,14 @@ their API collections to a Git repository or a hosted account.
 
 ![Workbench workspace and project management](docs/images/phase-2-workspace-management.png)
 
-The interface reads workspaces, projects, nested folders, and active-workspace
-selection from PostgreSQL. Users can create, rename, duplicate, reorder,
-archive, restore, move, and delete the relevant records. Request editing and
-execution arrive in Phase 3. Documentation screenshots are captured from the
-real application with generic data and must never contain secrets.
+The interface reads workspaces, projects, nested folders, saved requests,
+execution counts, and active-workspace selection from PostgreSQL. The request
+editor persists query parameters, headers, cookies, all planned body modes, and
+per-request safety settings. Server-side execution supports cancellation and a
+response viewer for formatted/raw bodies, headers, redacted cookies, timing,
+request snapshots, downloads, and history. Documentation screenshots are
+captured from the real application with generic data and must never contain
+secrets.
 
 ## Quick start
 
@@ -133,8 +137,9 @@ Next.js application
     PostgreSQL
 ```
 
-See [Architecture](docs/architecture.md), [Data model](docs/data-model.md), and
-the [workspace management design](docs/workspace-management.md).
+See [Architecture](docs/architecture.md), [Data model](docs/data-model.md),
+[Workspace management](docs/workspace-management.md), and
+[Request execution](docs/request-execution.md).
 
 ## Testing and security
 

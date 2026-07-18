@@ -17,6 +17,10 @@ import {
   applicationSettings,
   folders,
   projects,
+  requestBodies,
+  requestExecutions,
+  requestHeaders,
+  requestQueryParameters,
   savedRequests,
   workspaces,
 } from "@/db/schema";
@@ -239,6 +243,89 @@ async function copyFolderHierarchy(
     const copiedIds = new Set(ready.map(({ id }) => id));
     pending = pending.filter(({ id }) => !copiedIds.has(id));
   }
+
+  return idMap;
+}
+
+async function copyProjectRequests(
+  executor: QueryExecutor,
+  sourceProjectId: string,
+  targetProjectId: string,
+  folderIds: ReadonlyMap<string, string>,
+) {
+  const sourceRequests = await executor
+    .select()
+    .from(savedRequests)
+    .where(eq(savedRequests.projectId, sourceProjectId))
+    .orderBy(asc(savedRequests.position), asc(savedRequests.name));
+
+  for (const source of sourceRequests) {
+    const [copy] = await executor
+      .insert(savedRequests)
+      .values({
+        projectId: targetProjectId,
+        folderId: source.folderId
+          ? (folderIds.get(source.folderId) ?? null)
+          : null,
+        name: source.name,
+        description: source.description,
+        method: source.method,
+        url: source.url,
+        position: source.position,
+        tags: source.tags,
+        settings: source.settings,
+      })
+      .returning({ id: savedRequests.id });
+    if (!copy) continue;
+
+    const [headers, queryParameters, bodies] = await Promise.all([
+      executor
+        .select()
+        .from(requestHeaders)
+        .where(eq(requestHeaders.requestId, source.id)),
+      executor
+        .select()
+        .from(requestQueryParameters)
+        .where(eq(requestQueryParameters.requestId, source.id)),
+      executor
+        .select()
+        .from(requestBodies)
+        .where(eq(requestBodies.requestId, source.id)),
+    ]);
+    if (headers.length) {
+      await executor.insert(requestHeaders).values(
+        headers.map((header) => ({
+          requestId: copy.id,
+          name: header.name,
+          value: header.value,
+          enabled: header.enabled,
+          secret: header.secret,
+          position: header.position,
+        })),
+      );
+    }
+    if (queryParameters.length) {
+      await executor.insert(requestQueryParameters).values(
+        queryParameters.map((parameter) => ({
+          requestId: copy.id,
+          name: parameter.name,
+          value: parameter.value,
+          enabled: parameter.enabled,
+          position: parameter.position,
+        })),
+      );
+    }
+    if (bodies[0]) {
+      const body = bodies[0];
+      await executor.insert(requestBodies).values({
+        requestId: copy.id,
+        type: body.type,
+        content: body.content,
+        contentType: body.contentType,
+        metadata: body.metadata,
+      });
+    }
+  }
 }
 
 export async function getWorkbenchNavigation(): Promise<WorkbenchNavigation> {
@@ -249,6 +336,8 @@ export async function getWorkbenchNavigation(): Promise<WorkbenchNavigation> {
     folderRows,
     requestCountRows,
     folderRequestCountRows,
+    requestRows,
+    executionCountRows,
     settingRows,
   ] = await Promise.all([
     database
@@ -273,6 +362,21 @@ export async function getWorkbenchNavigation(): Promise<WorkbenchNavigation> {
       .where(isNotNull(savedRequests.folderId))
       .groupBy(savedRequests.folderId),
     database
+      .select({
+        id: savedRequests.id,
+        projectId: savedRequests.projectId,
+        folderId: savedRequests.folderId,
+        name: savedRequests.name,
+        method: savedRequests.method,
+        position: savedRequests.position,
+      })
+      .from(savedRequests)
+      .orderBy(asc(savedRequests.position), asc(savedRequests.name)),
+    database
+      .select({ projectId: requestExecutions.projectId, value: count() })
+      .from(requestExecutions)
+      .groupBy(requestExecutions.projectId),
+    database
       .select({ value: applicationSettings.value })
       .from(applicationSettings)
       .where(eq(applicationSettings.key, activeWorkspaceSettingKey))
@@ -287,6 +391,15 @@ export async function getWorkbenchNavigation(): Promise<WorkbenchNavigation> {
       row.folderId ? [[row.folderId, Number(row.value)] as const] : [],
     ),
   );
+  const executionCounts = new Map(
+    executionCountRows.map((row) => [row.projectId, Number(row.value)]),
+  );
+  const requestsByProject = new Map<string, typeof requestRows>();
+  for (const request of requestRows) {
+    const rows = requestsByProject.get(request.projectId) ?? [];
+    rows.push(request);
+    requestsByProject.set(request.projectId, rows);
+  }
   const foldersByProject = new Map<string, typeof folderRows>();
 
   for (const folder of folderRows) {
@@ -315,6 +428,8 @@ export async function getWorkbenchNavigation(): Promise<WorkbenchNavigation> {
       position: project.position,
       archived: project.archived,
       requestCount: projectRequestCounts.get(project.id) ?? 0,
+      executionCount: executionCounts.get(project.id) ?? 0,
+      requests: requestsByProject.get(project.id) ?? [],
       folders: buildFolderTree(
         (foldersByProject.get(project.id) ?? []).map((folder) => ({
           ...folder,
@@ -430,8 +545,19 @@ export async function duplicateWorkspace(id: string) {
         })
         .returning({ id: projects.id });
 
-      if (project)
-        await copyFolderHierarchy(transaction, sourceProject.id, project.id);
+      if (project) {
+        const folderIds = await copyFolderHierarchy(
+          transaction,
+          sourceProject.id,
+          project.id,
+        );
+        await copyProjectRequests(
+          transaction,
+          sourceProject.id,
+          project.id,
+          folderIds,
+        );
+      }
     }
 
     await setActiveWorkspace(transaction, workspace.id);
@@ -525,7 +651,12 @@ export async function duplicateProject(id: string) {
 
     if (!project)
       throw new WorkspaceDomainError("Project could not be duplicated.");
-    await copyFolderHierarchy(transaction, source.id, project.id);
+    const folderIds = await copyFolderHierarchy(
+      transaction,
+      source.id,
+      project.id,
+    );
+    await copyProjectRequests(transaction, source.id, project.id, folderIds);
     return project;
   });
 }

@@ -8,6 +8,14 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
 
+vi.mock("@/features/requests/actions", () => ({
+  createSavedRequestAction: vi.fn(),
+  deleteSavedRequestAction: vi.fn(),
+  duplicateSavedRequestAction: vi.fn(),
+  moveSavedRequestAction: vi.fn(),
+  updateSavedRequestAction: vi.fn(),
+}));
+
 vi.mock("@/features/workspaces/actions", () => ({
   archiveProjectAction: vi.fn(),
   createFolderAction: vi.fn(),
@@ -67,6 +75,8 @@ describe("WorkbenchShell", () => {
                   position: 0,
                   archived: false,
                   requestCount: 0,
+                  executionCount: 0,
+                  requests: [],
                   folders: [
                     {
                       id: "folder",

@@ -7,6 +7,7 @@ import {
   History,
   Network,
   Plus,
+  Send,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,9 +21,11 @@ import type { EditorState } from "./workspace-ui-types";
 export function ProjectOverview({
   project,
   setEditor,
+  onCreateRequest,
 }: {
   project: ProjectNavigation | undefined;
   setEditor: (state: EditorState) => void;
+  onCreateRequest: (projectId: string, folderId: string | null) => void;
 }) {
   if (!project) {
     return (
@@ -62,19 +65,24 @@ export function ProjectOverview({
                 "Add a description to explain what belongs in this project."}
             </p>
           </div>
-          <Button
-            onClick={() =>
-              setEditor({
-                kind: "create-folder",
-                projectId: project.id,
-                parentId: null,
-                name: "",
-              })
-            }
-            variant="secondary"
-          >
-            <Plus aria-hidden="true" className="size-4" /> New folder
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => onCreateRequest(project.id, null)}>
+              <Send aria-hidden="true" className="size-4" /> New request
+            </Button>
+            <Button
+              onClick={() =>
+                setEditor({
+                  kind: "create-folder",
+                  projectId: project.id,
+                  parentId: null,
+                  name: "",
+                })
+              }
+              variant="secondary"
+            >
+              <Plus aria-hidden="true" className="size-4" /> New folder
+            </Button>
+          </div>
         </div>
 
         <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -85,7 +93,11 @@ export function ProjectOverview({
               label: "Saved requests",
               value: project.requestCount,
             },
-            { icon: History, label: "Executions", value: "—" },
+            {
+              icon: History,
+              label: "Executions",
+              value: project.executionCount,
+            },
           ].map(({ icon: Icon, label, value }) => (
             <div
               className="rounded-xl border bg-surface p-4 shadow-sm"
@@ -144,7 +156,7 @@ export function ProjectOverview({
                 />
                 <p className="mt-3 text-sm font-medium">No folders yet</p>
                 <p className="mt-1 text-xs text-muted">
-                  Create a folder to organise requests in the next phase.
+                  Create a folder to organise saved requests.
                 </p>
               </div>
             </div>

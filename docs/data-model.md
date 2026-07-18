@@ -38,6 +38,19 @@ single-user active workspace is stored as the
 `navigation.activeWorkspaceId` application setting and falls back to the first
 ordered workspace when its target no longer exists.
 
+Saved request components are separate rows for ordered headers, query
+parameters, and the single body. Per-request execution controls and cookies use
+the request's typed JSON settings until broader application settings arrive.
+Moving a request verifies folder/project ownership and gives it the next
+position in the destination. Project and workspace duplication now deep-copies
+folder IDs plus saved request headers, parameters, bodies, tags, and settings.
+
+Execution history keeps an immutable redacted request snapshot and an optional
+one-to-one response metadata row. Deleting a saved request sets the history
+reference to `NULL`, preserving project diagnostics. Application-level
+retention keeps the latest 100 executions per project; response body previews
+are bounded separately from the network response-size limit.
+
 Imported definitions retain the original source document and structured
 operation records. Custom saved requests are separate records, so refreshing an
 import cannot silently overwrite them.

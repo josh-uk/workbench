@@ -29,6 +29,10 @@ import {
 
 import { Button } from "@/components/ui/button";
 import {
+  createSavedRequestAction,
+  deleteSavedRequestAction,
+} from "@/features/requests/actions";
+import {
   createFolderAction,
   createProjectAction,
   createWorkspaceAction,
@@ -44,6 +48,8 @@ import type { WorkbenchNavigation } from "@/features/workspaces/domain";
 import { cn } from "@/lib/utils";
 
 import { ProjectOverview } from "./project-overview";
+import { RequestEditor } from "./request-editor";
+import { RequestNavigationItem } from "./request-navigation";
 import {
   DeleteDialog,
   EntityEditorDialog,
@@ -71,6 +77,9 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
+    null,
+  );
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
@@ -89,8 +98,11 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
     (project) =>
       !normalisedQuery ||
       project.name.toLocaleLowerCase().includes(normalisedQuery) ||
+      project.requests.some((request) =>
+        request.name.toLocaleLowerCase().includes(normalisedQuery),
+      ) ||
       project.folders.some((folder) =>
-        folderMatchesQuery(folder, normalisedQuery),
+        folderMatchesQuery(folder, normalisedQuery, project.requests),
       ),
   );
   const activeProjects =
@@ -101,6 +113,11 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
     activeWorkspace?.projects.find(
       ({ id, archived }) => id === selectedProjectId && !archived,
     ) ?? activeWorkspace?.projects.find(({ archived }) => !archived);
+  const activeRequestId = selectedProject?.requests.some(
+    ({ id }) => id === selectedRequestId,
+  )
+    ? selectedRequestId
+    : null;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -196,10 +213,36 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
         ? () => deleteWorkspaceAction({ workspaceId: current.id })
         : current.kind === "project"
           ? () => deleteProjectAction({ projectId: current.id })
-          : () => deleteFolderAction({ folderId: current.id });
-    runMutation(mutation, `${current.name} deleted.`, () =>
-      setDeleteState(null),
-    );
+          : current.kind === "folder"
+            ? () => deleteFolderAction({ folderId: current.id })
+            : () => deleteSavedRequestAction({ requestId: current.id });
+    runMutation(mutation, `${current.name} deleted.`, () => {
+      if (current.kind === "request" && selectedRequestId === current.id) {
+        setSelectedRequestId(null);
+      }
+      setDeleteState(null);
+    });
+  };
+
+  const createRequest = (projectId: string, folderId: string | null) => {
+    setNotice(null);
+    startTransition(async () => {
+      const result = await createSavedRequestAction({
+        projectId,
+        folderId,
+        name: "New request",
+        method: "GET",
+        url: "https://example.com",
+      });
+      if (!result.ok) {
+        setNotice({ tone: "error", text: result.error });
+        return;
+      }
+      setSelectedProjectId(projectId);
+      setSelectedRequestId(result.data.id);
+      setNotice({ tone: "success", text: "Request created." });
+      router.refresh();
+    });
   };
 
   return (
@@ -339,7 +382,10 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                   >
                     <button
                       className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-xs font-medium"
-                      onClick={() => setSelectedProjectId(project.id)}
+                      onClick={() => {
+                        setSelectedProjectId(project.id);
+                        setSelectedRequestId(null);
+                      }}
                       type="button"
                     >
                       {selected ? (
@@ -378,14 +424,38 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                   </div>
                   {selected ? (
                     <div className="ml-3 border-l pl-1">
+                      {project.requests
+                        .filter(
+                          (request) =>
+                            request.folderId === null &&
+                            (!normalisedQuery ||
+                              request.name
+                                .toLocaleLowerCase()
+                                .includes(normalisedQuery)),
+                        )
+                        .map((request) => (
+                          <RequestNavigationItem
+                            key={request.id}
+                            pending={pending}
+                            request={request}
+                            runMutation={runMutation}
+                            selected={request.id === activeRequestId}
+                            setDeleteState={setDeleteState}
+                            setSelectedRequestId={setSelectedRequestId}
+                          />
+                        ))}
                       {project.folders.length ? (
                         <FolderTree
                           folders={project.folders}
+                          onCreateRequest={createRequest}
                           pending={pending}
                           query={normalisedQuery}
+                          requests={project.requests}
                           runMutation={runMutation}
+                          selectedRequestId={activeRequestId}
                           setDeleteState={setDeleteState}
                           setEditor={setEditor}
+                          setSelectedRequestId={setSelectedRequestId}
                         />
                       ) : (
                         <button
@@ -474,7 +544,25 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
         </aside>
 
         {activeWorkspace ? (
-          <ProjectOverview project={selectedProject} setEditor={setEditor} />
+          activeRequestId && selectedProject ? (
+            <RequestEditor
+              folders={selectedProject.folders}
+              key={activeRequestId}
+              onDelete={(request) =>
+                setDeleteState({ kind: "request", ...request })
+              }
+              onNotice={(tone, text) => setNotice({ tone, text })}
+              onRefresh={() => router.refresh()}
+              onSelectRequest={setSelectedRequestId}
+              requestId={activeRequestId}
+            />
+          ) : (
+            <ProjectOverview
+              onCreateRequest={createRequest}
+              project={selectedProject}
+              setEditor={setEditor}
+            />
+          )
         ) : (
           <main className="grid min-w-0 flex-1 place-items-center bg-background p-8 text-center">
             <div className="max-w-lg">

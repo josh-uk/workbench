@@ -2,6 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 const e2ePort = process.env.E2E_PORT ?? "3100";
 const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
+const mockPort = process.env.E2E_MOCK_PORT ?? "3201";
+const mockBaseUrl = `http://127.0.0.1:${mockPort}`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -23,17 +25,26 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: `npm run dev -- --hostname 127.0.0.1 --port ${e2ePort}`,
-    url: e2eBaseUrl,
-    reuseExistingServer: false,
-    timeout: 120_000,
-    env: {
-      ...process.env,
-      DATABASE_URL:
-        process.env.TEST_DATABASE_URL ??
-        process.env.DATABASE_URL ??
-        "postgresql://workbench:workbench@127.0.0.1:5432/workbench",
+  webServer: [
+    {
+      command: `npm run dev -- --hostname 127.0.0.1 --port ${e2ePort}`,
+      url: e2eBaseUrl,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        ...process.env,
+        DATABASE_URL:
+          process.env.TEST_DATABASE_URL ??
+          process.env.DATABASE_URL ??
+          "postgresql://workbench:workbench@127.0.0.1:5432/workbench",
+      },
     },
-  },
+    {
+      command: "node tests/support/mock-api.mjs",
+      url: `${mockBaseUrl}/health`,
+      reuseExistingServer: false,
+      timeout: 30_000,
+      env: { ...process.env, E2E_MOCK_PORT: mockPort },
+    },
+  ],
 });

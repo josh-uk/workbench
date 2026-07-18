@@ -28,9 +28,11 @@ Deleting a workspace or project removes its owned records through database
 foreign keys. Deleting a folder removes nested folders but preserves saved
 requests by moving them to the project root.
 
-Phase 2 duplication copies workspace, project, and folder structure. The later
-request and configuration phases extend that operation to their newly managed
-child records before the product reaches its final definition of done.
+Workspace and project duplication copies folder structure plus Phase 3 saved
+request headers, query parameters, bodies, tags, and settings while remapping
+folder IDs. Later configuration phases extend the same transaction to their
+newly managed child records before the product reaches its final definition of
+done.
 
 ## Testing
 
