@@ -37,10 +37,14 @@ FROM node:24-alpine AS runner
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+ENV WORKBENCH_BACKUP_DIR=/backups
 
 RUN apk add --no-cache libc6-compat \
   && addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
+  && adduser --system --uid 1001 nextjs \
+  && mkdir -p /backups \
+  && chown nextjs:nodejs /backups \
+  && chmod 700 /backups
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=production-dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules

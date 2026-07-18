@@ -37,6 +37,7 @@ import {
   savedRequests,
   variables,
 } from "@/db/schema";
+import { getDataRetentionSettings } from "@/features/exports/data/settings-repository";
 import { syncImportedRequestCustomization } from "@/features/openapi/data/openapi-repository";
 import {
   createRequestCopyName,
@@ -80,8 +81,6 @@ export interface ExecutionSuccess {
   bodyTruncated: boolean;
   contentType: string | null;
 }
-
-const HISTORY_LIMIT = 100;
 
 function folderScopeCondition(projectId: string, folderId: string | null) {
   return and(
@@ -826,13 +825,17 @@ export async function createExecutionRecord(input: {
     });
 }
 
-async function trimHistory(executor: QueryExecutor, projectId: string) {
+async function trimHistory(
+  executor: QueryExecutor,
+  projectId: string,
+  historyLimit: number,
+) {
   const expired = await executor
     .select({ id: requestExecutions.id })
     .from(requestExecutions)
     .where(eq(requestExecutions.projectId, projectId))
     .orderBy(desc(requestExecutions.createdAt))
-    .offset(HISTORY_LIMIT);
+    .offset(historyLimit);
   if (expired.length) {
     await executor.delete(requestExecutions).where(
       inArray(
@@ -848,6 +851,7 @@ export async function completeExecution(
   result: ExecutionSuccess,
   assertionResults: AssertionResult[] = [],
 ) {
+  const { executionHistoryLimit } = await getDataRetentionSettings();
   const database = getDatabase();
   await database.transaction(async (transaction) => {
     const [execution] = await transaction
@@ -877,7 +881,7 @@ export async function completeExecution(
       bodyTruncated: result.bodyTruncated,
       contentType: result.contentType,
     });
-    await trimHistory(transaction, execution.projectId);
+    await trimHistory(transaction, execution.projectId, executionHistoryLimit);
   });
 }
 
@@ -886,6 +890,7 @@ export async function failExecution(
   error: { code: string; message: string },
   cancelled: boolean,
 ) {
+  const { executionHistoryLimit } = await getDataRetentionSettings();
   const database = getDatabase();
   await database.transaction(async (transaction) => {
     const [execution] = await transaction
@@ -898,7 +903,12 @@ export async function failExecution(
       })
       .where(eq(requestExecutions.id, id))
       .returning({ projectId: requestExecutions.projectId });
-    if (execution) await trimHistory(transaction, execution.projectId);
+    if (execution)
+      await trimHistory(
+        transaction,
+        execution.projectId,
+        executionHistoryLimit,
+      );
   });
 }
 

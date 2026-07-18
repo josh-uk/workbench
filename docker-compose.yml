@@ -9,11 +9,15 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-workbench}:${POSTGRES_PASSWORD:-workbench}@database:5432/${POSTGRES_DB:-workbench}
+      WORKBENCH_BACKUP_DIR: /backups
+      WORKBENCH_BACKUP_PASSWORD: ${WORKBENCH_BACKUP_PASSWORD:-}
     ports:
       - "${APP_PORT:-3000}:3000"
     depends_on:
       database:
         condition: service_healthy
+    volumes:
+      - workbench_backups:/backups
     healthcheck:
       test:
         [
@@ -49,3 +53,5 @@ services:
 volumes:
   workbench_postgres_data:
     name: workbench_postgres_data
+  workbench_backups:
+    name: workbench_backups

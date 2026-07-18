@@ -58,8 +58,9 @@ references are deep-copied and remapped; historical workflow runs are not.
 Execution history keeps an immutable redacted request snapshot and an optional
 one-to-one response metadata row. Deleting a saved request sets the history
 reference to `NULL`, preserving project diagnostics. Application-level
-retention keeps the latest 100 executions per project; response body previews
-are bounded separately from the network response-size limit.
+retention keeps a configurable 10–1,000 executions per project (100 by default);
+response body previews are bounded separately from the network response-size
+limit.
 
 Authentication profile configuration uses validated JSON so profile types can
 evolve without a sparse table for every credential field. `auth_token_cache`
@@ -102,3 +103,8 @@ delete its historical run report.
 
 The generated SQL migration under `drizzle/` is the source of truth for deployed
 schema history. Migrations are forward-only after merging to `master`.
+
+Logical archives serialize all 25 tables with their stable UUIDs. Scoped imports
+replace those IDs and every known foreign key; full restore preserves them.
+Backup configuration, retention configuration, and the latest restore audit use
+typed `application_settings` values, so Phase 9 required no new database table.

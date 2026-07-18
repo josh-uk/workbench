@@ -68,6 +68,16 @@ continue-on-failure reports. The Chromium flow builds two saved requests,
 publishes a generated value, consumes it in the next workflow step, and verifies
 the readable passing report.
 
+Export unit tests cover v1 manifests, default sanitisation, encrypted and
+plain-text secret modes, wrong passwords, checksums, record counts, unsupported
+versions, and archive path/size boundaries. PostgreSQL integration tests cover
+cross-workspace scope isolation, encrypted workspace restore, project import
+into a selected workspace, UUID and workflow remapping, secret exclusion,
+atomic full restore rollback, configurable request-history retention, timestamped
+filesystem backups, `0600` permissions, and oldest-first pruning. The Chromium
+flow downloads a real project ZIP, imports it, changes retention, and creates a
+stored full backup through Settings.
+
 CI runs formatting, linting, strict type checking, unit coverage, component
 tests, migration checks, integration tests, a production build, Playwright,
 container build, and a high-severity dependency audit. Failure artifacts include

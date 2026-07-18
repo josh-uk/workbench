@@ -53,6 +53,7 @@ import { OpenApiManager } from "./openapi-manager";
 import { RequestEditor } from "./request-editor";
 import { RequestNavigationItem } from "./request-navigation";
 import { AuthProfileManager } from "./auth-profile-manager";
+import { BackupManager } from "./backup-manager";
 import { VariableManager } from "./variable-manager";
 import { WorkflowManager } from "./workflow-manager";
 import {
@@ -89,7 +90,13 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
   const [configurationView, setConfigurationView] = useState<{
-    kind: "variables" | "auth" | "imports" | "collection_imports" | "workflows";
+    kind:
+      | "variables"
+      | "auth"
+      | "imports"
+      | "collection_imports"
+      | "workflows"
+      | "settings";
     projectId?: string;
   } | null>(null);
   const [notice, setNotice] = useState<{
@@ -612,13 +619,39 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
             ) : null}
           </div>
           <div className="border-t p-2">
-            <NavigationItem icon={Settings2} label="Settings" />
+            <NavigationItem
+              active={configurationView?.kind === "settings"}
+              icon={Settings2}
+              label="Settings"
+              onClick={() => {
+                setSelectedRequestId(null);
+                setConfigurationView({ kind: "settings" });
+              }}
+            />
           </div>
         </aside>
 
         {activeWorkspace ? (
           configurationView ? (
-            configurationView.kind === "auth" ? (
+            configurationView.kind === "settings" ? (
+              <BackupManager
+                activeWorkspace={{
+                  id: activeWorkspace.id,
+                  name: activeWorkspace.name,
+                }}
+                onClose={() => setConfigurationView(null)}
+                onRefresh={() => router.refresh()}
+                project={
+                  selectedProject
+                    ? { id: selectedProject.id, name: selectedProject.name }
+                    : undefined
+                }
+                workspaces={navigation.workspaces.map((workspace) => ({
+                  id: workspace.id,
+                  name: workspace.name,
+                }))}
+              />
+            ) : configurationView.kind === "auth" ? (
               <AuthProfileManager
                 key={`auth:${activeWorkspace.id}:${configurationView.projectId ?? "workspace"}`}
                 onClose={() => setConfigurationView(null)}
