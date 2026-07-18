@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-alpine AS base
+FROM --platform=$BUILDPLATFORM node:24-alpine AS build-base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
-FROM base AS dependencies
+FROM build-base AS dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
 
@@ -15,25 +15,35 @@ COPY . .
 EXPOSE 3000
 CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
 
-FROM base AS builder
+FROM build-base AS builder
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM base AS production-dependencies
+# Resolve target-specific native packages without running Node under QEMU.
+FROM build-base AS production-dependencies
+ARG TARGETARCH
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN case "$TARGETARCH" in \
+    amd64) target_npm_cpu=x64 ;; \
+    *) target_npm_cpu="$TARGETARCH" ;; \
+  esac \
+  && npm ci --omit=dev --ignore-scripts --os=linux --cpu="$target_npm_cpu" --libc=musl \
+  && test -d "node_modules/@img/sharp-linuxmusl-$target_npm_cpu" \
+  && test -d "node_modules/@img/sharp-libvips-linuxmusl-$target_npm_cpu" \
+  && npm cache clean --force
 
-FROM base AS runner
+FROM node:24-alpine AS runner
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-RUN addgroup --system --gid 1001 nodejs \
+RUN apk add --no-cache libc6-compat \
+  && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
-COPY --from=production-dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=production-dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
