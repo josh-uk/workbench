@@ -2,6 +2,7 @@
 
 import {
   Archive,
+  Command,
   Folder,
   FolderOpen,
   History,
@@ -21,6 +22,8 @@ import {
 import { useRouter } from "next/navigation";
 import {
   type FormEvent,
+  useCallback,
+  useDeferredValue,
   useEffect,
   useRef,
   useState,
@@ -54,6 +57,7 @@ import { RequestEditor } from "./request-editor";
 import { RequestNavigationItem } from "./request-navigation";
 import { AuthProfileManager } from "./auth-profile-manager";
 import { BackupManager } from "./backup-manager";
+import { CommandPalette, type CommandPaletteAction } from "./command-palette";
 import { VariableManager } from "./variable-manager";
 import { WorkflowManager } from "./workflow-manager";
 import {
@@ -79,6 +83,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [dark, setDark] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
@@ -109,7 +114,8 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
     navigation.workspaces.find(
       ({ id }) => id === navigation.activeWorkspaceId,
     ) ?? navigation.workspaces[0];
-  const normalisedQuery = query.toLocaleLowerCase();
+  const deferredQuery = useDeferredValue(query);
+  const normalisedQuery = deferredQuery.trim().toLocaleLowerCase();
   const visibleProjects = activeWorkspace?.projects.filter(
     (project) =>
       !normalisedQuery ||
@@ -134,20 +140,6 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   )
     ? selectedRequestId
     : null;
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.key.toLocaleLowerCase() === "k"
-      ) {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   const runMutation = (
     mutation: Mutation,
@@ -240,27 +232,165 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
     });
   };
 
-  const createRequest = (projectId: string, folderId: string | null) => {
-    setNotice(null);
-    startTransition(async () => {
-      const result = await createSavedRequestAction({
-        projectId,
-        folderId,
-        name: "New request",
-        method: "GET",
-        url: "https://example.com",
+  const createRequest = useCallback(
+    (projectId: string, folderId: string | null) => {
+      setNotice(null);
+      startTransition(async () => {
+        const result = await createSavedRequestAction({
+          projectId,
+          folderId,
+          name: "New request",
+          method: "GET",
+          url: "https://example.com",
+        });
+        if (!result.ok) {
+          setNotice({ tone: "error", text: result.error });
+          return;
+        }
+        setSelectedProjectId(projectId);
+        setSelectedRequestId(result.data.id);
+        setConfigurationView(null);
+        setNotice({ tone: "success", text: "Request created." });
+        router.refresh();
       });
-      if (!result.ok) {
-        setNotice({ tone: "error", text: result.error });
-        return;
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat || (!event.metaKey && !event.ctrlKey)) return;
+      const key = event.key.toLocaleLowerCase();
+      if (event.shiftKey && key === "p") {
+        event.preventDefault();
+        setCommandPaletteOpen(true);
+      } else if (key === "k") {
+        event.preventDefault();
+        setCommandPaletteOpen(false);
+        searchRef.current?.focus();
+      } else if (key === "n" && selectedProject) {
+        event.preventDefault();
+        createRequest(selectedProject.id, null);
+      } else if (key === "b") {
+        event.preventDefault();
+        setSidebarOpen((value) => !value);
       }
-      setSelectedProjectId(projectId);
-      setSelectedRequestId(result.data.id);
-      setConfigurationView(null);
-      setNotice({ tone: "success", text: "Request created." });
-      router.refresh();
-    });
-  };
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [createRequest, selectedProject]);
+
+  const commandActions: CommandPaletteAction[] = [
+    {
+      id: "new-request",
+      label: "Create request",
+      description: selectedProject
+        ? `Add a request to ${selectedProject.name}`
+        : "Create a project before adding requests",
+      shortcut: "⌘/Ctrl N",
+      keywords: ["new", "http"],
+      disabled: !selectedProject,
+      run: () => selectedProject && createRequest(selectedProject.id, null),
+    },
+    {
+      id: "search",
+      label: "Search projects and requests",
+      description: "Focus the navigator search",
+      shortcut: "⌘/Ctrl K",
+      keywords: ["find", "filter"],
+      run: () => searchRef.current?.focus(),
+    },
+    {
+      id: "workspace-variables",
+      label: "Workspace variables",
+      description: "Manage environments and scoped values",
+      keywords: ["environment", "configuration"],
+      run: () => {
+        setSelectedRequestId(null);
+        setConfigurationView({ kind: "variables" });
+      },
+    },
+    {
+      id: "authentication",
+      label: "Authentication profiles",
+      description: "Manage reusable credentials and token requests",
+      keywords: ["oauth", "api key", "basic", "bearer"],
+      run: () => {
+        setSelectedRequestId(null);
+        setConfigurationView({
+          kind: "auth",
+          projectId: selectedProject?.id,
+        });
+      },
+    },
+    {
+      id: "openapi",
+      label: "Imported definitions",
+      description: "Import or refresh an OpenAPI definition",
+      keywords: ["swagger", "schema"],
+      disabled: !selectedProject,
+      run: () => {
+        setSelectedRequestId(null);
+        setConfigurationView({
+          kind: "imports",
+          projectId: selectedProject?.id,
+        });
+      },
+    },
+    {
+      id: "collection-imports",
+      label: "Collection imports",
+      description: "Import HTTPie, Postman, cURL, or raw HTTP",
+      keywords: ["httpie", "postman", "curl"],
+      disabled: !selectedProject,
+      run: () => {
+        setSelectedRequestId(null);
+        setConfigurationView({
+          kind: "collection_imports",
+          projectId: selectedProject?.id,
+        });
+      },
+    },
+    {
+      id: "workflows",
+      label: "Workflows",
+      description: "Build and run ordered request chains",
+      keywords: ["chain", "assertions"],
+      disabled: !selectedProject,
+      run: () => {
+        setSelectedRequestId(null);
+        setConfigurationView({
+          kind: "workflows",
+          projectId: selectedProject?.id,
+        });
+      },
+    },
+    {
+      id: "settings",
+      label: "Open settings",
+      description: "Export, backup, restore, and configure retention",
+      keywords: ["backup", "export", "restore"],
+      run: () => {
+        setSelectedRequestId(null);
+        setConfigurationView({ kind: "settings" });
+      },
+    },
+    {
+      id: "toggle-sidebar",
+      label: sidebarOpen ? "Collapse sidebar" : "Open sidebar",
+      description: "Toggle the project navigator",
+      shortcut: "⌘/Ctrl B",
+      keywords: ["navigation", "panel"],
+      run: () => setSidebarOpen((value) => !value),
+    },
+    {
+      id: "toggle-theme",
+      label: dark ? "Use light theme" : "Use dark theme",
+      description: "Switch the Workbench colour theme",
+      keywords: ["appearance", "dark", "light"],
+      run: () => setDark((value) => !value),
+    },
+  ];
 
   return (
     <div
@@ -323,6 +453,15 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
         <span className="hidden items-center gap-2 rounded-md border border-success/25 bg-success/10 px-2.5 py-1.5 text-xs font-medium text-success sm:flex">
           <span className="size-1.5 rounded-full bg-success" /> Local
         </span>
+        <Button
+          aria-label="Open command palette"
+          onClick={() => setCommandPaletteOpen(true)}
+          size="icon"
+          title="Command palette (⌘/Ctrl Shift P)"
+          variant="ghost"
+        >
+          <Command aria-hidden="true" className="size-4" />
+        </Button>
         <Button
           aria-label={dark ? "Use light theme" : "Use dark theme"}
           onClick={() => setDark((value) => !value)}
@@ -823,6 +962,12 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
         setState={setDeleteState}
         state={deleteState}
         submit={confirmDelete}
+      />
+      <CommandPalette
+        actions={commandActions}
+        onOpenChange={setCommandPaletteOpen}
+        open={commandPaletteOpen}
+        theme={dark ? "dark" : "light"}
       />
       {notice ? (
         <div

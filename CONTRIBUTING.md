@@ -11,7 +11,9 @@
 6. Merge only after required CI checks and review are complete.
 
 Direct commits to `master` are reserved for unavoidable repository bootstrap.
-The repository uses squash merging and automatically deletes merged branches.
+The repository uses rebase merging and automatically deletes merged branches.
+Keep commits reviewable and conventional because their individual identities are
+preserved on `master`; do not squash phase pull requests.
 
 ## Local quality gate
 

@@ -50,3 +50,25 @@ major violates peer ranges in the latest Next.js toolchain, use the newest
 compatible stable release rather than committing an invalid dependency tree.
 `npm ls --depth=0`, the production build, the full test matrix, and `npm audit`
 must all pass after dependency changes.
+
+## Documentation screenshots
+
+The browser suite owns the product screenshots in `docs/images`. It uses fixed
+fake names and the local deterministic mock API so documentation never depends
+on, or captures, personal data and public services.
+
+Run it against a fresh isolated PostgreSQL database because the documentation
+fixtures deliberately use stable names:
+
+```bash
+docker compose exec database createdb -U workbench workbench_screenshots
+DATABASE_URL=postgresql://workbench:workbench@localhost:5432/workbench_screenshots \
+TEST_DATABASE_URL=postgresql://workbench:workbench@localhost:5432/workbench_screenshots \
+npm run db:migrate
+DATABASE_URL=postgresql://workbench:workbench@localhost:5432/workbench_screenshots \
+TEST_DATABASE_URL=postgresql://workbench:workbench@localhost:5432/workbench_screenshots \
+npm run screenshots
+```
+
+Review every changed image before committing it. In particular, confirm that no
+token, credential, private hostname, customer data, or personal name is visible.

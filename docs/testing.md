@@ -9,6 +9,8 @@
 - Integration tests run repositories, migrations, and execution services against
   PostgreSQL and local mock HTTP services.
 - End-to-end tests use Playwright Chromium against the running application.
+- Automated Axe scans cover WCAG 2.0/2.1 A and AA rules on the principal product
+  surfaces.
 
 Tests never call public internet services. Fixtures contain only generic fake
 data. Secrets are forbidden in snapshots and screenshots.
@@ -77,6 +79,14 @@ atomic full restore rollback, configurable request-history retention, timestampe
 filesystem backups, `0600` permissions, and oldest-first pruning. The Chromium
 flow downloads a real project ZIP, imports it, changes retention, and creates a
 stored full backup through Settings.
+
+The tenth browser flow verifies the command palette and global keyboard
+shortcuts, then runs Axe against the overview, request/response editor, variable
+editor, authentication editor, OpenAPI preview, workflow report, backup
+settings, and command palette. The same suite can regenerate the eight stable
+documentation screenshots with `npm run screenshots`; see
+[development.md](development.md#documentation-screenshots) for the isolated
+database workflow.
 
 CI runs formatting, linting, strict type checking, unit coverage, component
 tests, migration checks, integration tests, a production build, Playwright,

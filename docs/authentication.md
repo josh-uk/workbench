@@ -22,6 +22,8 @@ response JSONPaths, injection target, and failure behavior. OAuth token endpoint
 run through the normal protocol, DNS, redirect, private-network, metadata,
 timeout, TLS, and response-size controls.
 
+![Authentication profiles](images/phase-10-authentication.png)
+
 ## Token lifecycle
 
 Workbench keeps one server-side cache entry per OAuth profile. It reuses a token

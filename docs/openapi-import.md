@@ -27,9 +27,13 @@ credentials, and OAuth password profiles when representable by Workbench.
 Unsupported schemes and external references are retained as warnings rather than
 fetched implicitly.
 
+![OpenAPI import preview](images/phase-10-openapi-preview.png)
+
 The original document, source hash/type/URL, OpenAPI and API versions, servers,
 tags, security definitions, schemas, operation snapshots, generated-request
 hashes, and import-run history are retained as a first-class definition.
+
+![Applied OpenAPI definition](images/phase-10-imported-definition.png)
 
 ## Refresh and customization
 

@@ -17,6 +17,8 @@ The active workspace is installation-wide because Workbench is currently a
 single-user local application. Project selection is client-local and falls back
 to the first active project when data changes.
 
+![Workspace and project navigation](images/phase-10-workspace.png)
+
 ## Validation and consistency
 
 All mutations cross a Zod-validated Server Action and a server-only repository.

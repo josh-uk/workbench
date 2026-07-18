@@ -294,14 +294,18 @@ export function RequestEditor({
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      if (!event.metaKey && !event.ctrlKey) return;
+      if (event.key === "Enter") {
         event.preventDefault();
         void send();
+      } else if (event.key.toLocaleLowerCase() === "s") {
+        event.preventDefault();
+        void save();
       }
     };
     window.addEventListener("keydown", keydown);
     return () => window.removeEventListener("keydown", keydown);
-  }, [send]);
+  }, [save, send]);
 
   const cancel = async () => {
     if (!executingId) return;
@@ -420,7 +424,12 @@ export function RequestEditor({
           ) : (
             <Button onClick={send}>
               <Send aria-hidden="true" className="size-4" /> Send
-              <kbd className="ml-1 rounded bg-black/15 px-1 text-[9px]">⌘↵</kbd>
+              <kbd
+                aria-hidden="true"
+                className="ml-1 rounded bg-black/15 px-1 text-[9px]"
+              >
+                ⌘↵
+              </kbd>
             </Button>
           )}
         </div>
@@ -443,6 +452,12 @@ export function RequestEditor({
             >
               <Save aria-hidden="true" className="size-3.5" />{" "}
               {saving ? "Saving…" : "Save"}
+              <kbd
+                aria-hidden="true"
+                className="ml-1 rounded bg-surface-strong px-1 text-[9px]"
+              >
+                ⌘S
+              </kbd>
             </Button>
             <Button
               aria-label="Duplicate request"

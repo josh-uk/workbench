@@ -1,18 +1,66 @@
-import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, type Page, test } from "@playwright/test";
 
+const documentationMode = process.env.DOCS_SCREENSHOTS === "1";
 const runId = Date.now().toString(36);
-const workspaceName = `E2E Work ${runId}`;
-const projectName = `Project ${runId}`;
-const requestName = `Get fact ${runId}`;
-const environmentName = `Local ${runId}`;
-const tokenRequestName = `Generate OAuth token ${runId}`;
-const authProfileName = `Derived OAuth ${runId}`;
-const protectedRequestName = `Protected fact ${runId}`;
-const importedRequestName = `Imported facts ${runId}`;
-const httpieRequestName = `HTTPie facts ${runId}`;
-const workflowSeedName = `Workflow seed ${runId}`;
-const workflowConsumerName = `Workflow consumer ${runId}`;
-const workflowName = `Output workflow ${runId}`;
+const workspaceName = documentationMode
+  ? "Product Engineering"
+  : `E2E Work ${runId}`;
+const projectName = documentationMode ? "Commerce API" : `Project ${runId}`;
+const requestName = documentationMode ? "List facts" : `Get fact ${runId}`;
+const environmentName = documentationMode
+  ? "Local development"
+  : `Local ${runId}`;
+const tokenRequestName = documentationMode
+  ? "Generate service token"
+  : `Generate OAuth token ${runId}`;
+const authProfileName = documentationMode
+  ? "Service OAuth"
+  : `Derived OAuth ${runId}`;
+const protectedRequestName = documentationMode
+  ? "Protected fact"
+  : `Protected fact ${runId}`;
+const importedRequestName = documentationMode
+  ? "List imported facts"
+  : `Imported facts ${runId}`;
+const httpieRequestName = documentationMode
+  ? "HTTPie facts"
+  : `HTTPie facts ${runId}`;
+const workflowSeedName = documentationMode
+  ? "Generate workflow value"
+  : `Workflow seed ${runId}`;
+const workflowConsumerName = documentationMode
+  ? "Consume workflow value"
+  : `Workflow consumer ${runId}`;
+const workflowName = documentationMode
+  ? "Validate facts workflow"
+  : `Output workflow ${runId}`;
+const openApiTitle = documentationMode ? "Facts API" : `E2E Facts ${runId}`;
+const httpieCollectionName = documentationMode
+  ? "HTTPie examples"
+  : `HTTPie E2E ${runId}`;
+
+async function captureDocumentation(page: Page, filename: string) {
+  if (!documentationMode) return;
+  await page.screenshot({
+    animations: "disabled",
+    caret: "hide",
+    path: `docs/images/${filename}.png`,
+  });
+}
+
+async function expectNoAccessibilityViolations(page: Page) {
+  const result = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(
+    result.violations.map((violation) => ({
+      id: violation.id,
+      impact: violation.impact,
+      targets: violation.nodes.flatMap((node) => node.target),
+    })),
+  ).toEqual([]);
+}
 
 test.describe.serial("workspace and project management", () => {
   test("creates and persists a workspace, project, and nested folders", async ({
@@ -54,6 +102,7 @@ test.describe.serial("workspace and project management", () => {
       page.getByRole("heading", { name: projectName }),
     ).toBeVisible();
     await expect(page.getByText("Examples")).toBeVisible();
+    await captureDocumentation(page, "phase-10-workspace");
   });
 
   test("renames, archives, restores, and searches projects", async ({
@@ -122,6 +171,8 @@ test.describe.serial("workspace and project management", () => {
     await expect(page.getByText("200 OK")).toBeVisible();
     await expect(page.getByText(/Honey never spoils/)).toBeVisible();
     await expect(page.getByText(/phase-3/)).toBeVisible();
+    await expectNoAccessibilityViolations(page);
+    await captureDocumentation(page, "phase-10-request-response");
 
     await page.reload();
     await page.getByText(requestName, { exact: true }).click();
@@ -145,7 +196,11 @@ test.describe.serial("workspace and project management", () => {
     await page.getByLabel("Name").fill(environmentName);
     await page
       .getByLabel("Description")
-      .fill("Local variables for the end-to-end mock API");
+      .fill(
+        documentationMode
+          ? "Local values for the demo API"
+          : "Local variables for the end-to-end mock API",
+      );
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await expect(page.getByText("Environment created.")).toBeVisible();
 
@@ -155,6 +210,8 @@ test.describe.serial("workspace and project management", () => {
     await page.getByLabel("Variable value 1").fill("http://127.0.0.1:3201");
     await page.getByRole("button", { name: "Save variables" }).click();
     await expect(page.getByText("Variables saved.")).toBeVisible();
+    await expectNoAccessibilityViolations(page);
+    await captureDocumentation(page, "phase-10-variables");
     await page.getByRole("button", { name: "Close variable manager" }).click();
 
     await page.getByText(requestName, { exact: true }).click();
@@ -246,6 +303,8 @@ test.describe.serial("workspace and project management", () => {
     });
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Authentication profile saved.")).toBeVisible();
+    await expectNoAccessibilityViolations(page);
+    await captureDocumentation(page, "phase-10-authentication");
     await page
       .getByRole("button", { name: "Close authentication profiles" })
       .click();
@@ -287,14 +346,14 @@ test.describe.serial("workspace and project management", () => {
     await page.getByLabel("OpenAPI JSON or YAML").fill(
       JSON.stringify({
         openapi: "3.1.0",
-        info: { title: `E2E Facts ${runId}`, version: "1.0.0" },
+        info: { title: openApiTitle, version: "1.0.0" },
         servers: [{ url: "http://127.0.0.1:3201" }],
         paths: {
           "/facts": {
             get: {
               operationId: `listFacts${runId}`,
               summary: importedRequestName,
-              tags: [`Imported ${runId}`],
+              tags: [documentationMode ? "Facts" : `Imported ${runId}`],
               parameters: [
                 {
                   name: "source",
@@ -312,13 +371,16 @@ test.describe.serial("workspace and project management", () => {
     await page.getByRole("button", { name: "Preview import" }).click();
 
     await expect(
-      page.getByRole("heading", { name: `E2E Facts ${runId}` }),
+      page.getByRole("heading", { name: openApiTitle }),
     ).toBeVisible();
     await expect(page.getByText(importedRequestName)).toBeVisible();
+    await expectNoAccessibilityViolations(page);
+    await captureDocumentation(page, "phase-10-openapi-preview");
     await page.getByRole("button", { name: "Apply import" }).click();
     await expect(
-      page.getByText(`Imported 1 requests from E2E Facts ${runId}.`),
+      page.getByText(`Imported 1 requests from ${openApiTitle}.`),
     ).toBeVisible();
+    await captureDocumentation(page, "phase-10-imported-definition");
 
     await page.getByRole("button", { name: "Close imports" }).click();
     await page.getByText(importedRequestName, { exact: true }).click();
@@ -346,7 +408,7 @@ test.describe.serial("workspace and project management", () => {
         },
         entry: {
           id: `httpie-collection-${runId}`,
-          name: `HTTPie E2E ${runId}`,
+          name: httpieCollectionName,
           auth: { type: "none" },
           requests: [
             {
@@ -369,7 +431,7 @@ test.describe.serial("workspace and project management", () => {
     await page.getByRole("button", { name: "Preview import" }).click();
 
     await expect(
-      page.getByRole("heading", { name: `HTTPie E2E ${runId}` }),
+      page.getByRole("heading", { name: httpieCollectionName }),
     ).toBeVisible();
     await expect(page.getByText(httpieRequestName)).toBeVisible();
     await page.getByText("Allow private/local request targets").click();
@@ -464,6 +526,11 @@ test.describe.serial("workspace and project management", () => {
       page.getByText("Published for later steps: workflowValue"),
     ).toBeVisible();
     await expect(page.getByText(/Consumer received output/)).toBeVisible();
+    await page
+      .getByRole("heading", { name: "Execution report" })
+      .scrollIntoViewIfNeeded();
+    await expectNoAccessibilityViolations(page);
+    await captureDocumentation(page, "phase-10-workflows");
   });
 
   test("exports, imports, and backs up project data", async ({ page }) => {
@@ -504,5 +571,46 @@ test.describe.serial("workspace and project management", () => {
     await expect(
       page.getByText(/workbench-backup-.*\.zip/).first(),
     ).toBeVisible();
+    await expectNoAccessibilityViolations(page);
+  });
+
+  test("navigates by keyboard and passes automated accessibility checks", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expectNoAccessibilityViolations(page);
+
+    await page.keyboard.press("ControlOrMeta+Shift+P");
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).toBeVisible();
+    await page
+      .getByRole("combobox", { name: "Search commands" })
+      .fill("backup");
+    await expectNoAccessibilityViolations(page);
+    await captureDocumentation(page, "phase-10-command-palette");
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("heading", { name: "Export, backup, and restore" }),
+    ).toBeVisible();
+
+    await page.keyboard.press("ControlOrMeta+Shift+P");
+    await page
+      .getByRole("combobox", { name: "Search commands" })
+      .fill("create request");
+    await page.keyboard.press("Enter");
+    await expect(page.getByLabel("Request URL")).toHaveValue(
+      "https://example.com",
+    );
+    await page.getByLabel("Request name").fill("Keyboard shortcut request");
+    await page.keyboard.press("ControlOrMeta+S");
+    await expect(page.getByText("Request saved.")).toBeVisible();
+
+    await page.keyboard.press("ControlOrMeta+K");
+    await expect(page.getByLabel("Search projects and folders")).toBeFocused();
+    await page.keyboard.press("ControlOrMeta+B");
+    await expect(page.locator("aside")).toBeHidden();
+    await page.keyboard.press("ControlOrMeta+B");
+    await expect(page.locator("aside")).toBeVisible();
   });
 });
