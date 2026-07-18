@@ -34,3 +34,11 @@ History is capped at the latest 100 executions per project. Body previews are
 capped at 1 MiB even when a larger response limit is selected. Image bodies are
 stored as bounded base64 previews; untrusted HTML renders only in an iframe with
 an empty sandbox permission set.
+
+Before URL parsing or network policy checks, the server interpolates the URL,
+query fields, headers, cookies, body, and content type using the selected
+variable scopes. Resolution preview returns masked values and their origins.
+Unresolved variables, cycles, invalid selections, and excessive recursion create
+a bounded failed execution record without opening a socket. Temporary runtime
+overrides are accepted only in the preview/execution payload and are not added
+to the saved request.

@@ -40,10 +40,14 @@ ordered workspace when its target no longer exists.
 
 Saved request components are separate rows for ordered headers, query
 parameters, and the single body. Per-request execution controls and cookies use
-the request's typed JSON settings until broader application settings arrive.
-Moving a request verifies folder/project ownership and gives it the next
-position in the destination. Project and workspace duplication now deep-copies
-folder IDs plus saved request headers, parameters, bodies, tags, and settings.
+the request's typed JSON settings. Selected workspace and project environment
+IDs live in the same typed settings object, while reusable values stay in the
+normalized `variables` and `environments` tables. Request variables are owned by
+the saved request and temporary runtime overrides are never persisted. Moving a
+request verifies folder/project ownership and gives it the next position in the
+destination. Project and workspace duplication now deep-copies folder IDs plus
+saved request headers, parameters, bodies, tags, settings, variable scopes,
+environments, and request variables while remapping every environment selection.
 
 Execution history keeps an immutable redacted request snapshot and an optional
 one-to-one response metadata row. Deleting a saved request sets the history

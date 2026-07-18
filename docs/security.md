@@ -30,7 +30,7 @@ trace.
 
 ## Outbound request implementation
 
-The Phase 3 executor validates the protocol, rejects URL-embedded credentials,
+The executor validates the protocol, rejects URL-embedded credentials,
 resolves every address, blocks mixed public/private DNS answers by default, and
 pins the socket to a validated address while retaining the original host for
 HTTP Host and TLS SNI. Redirect locations receive the same validation. Metadata
@@ -44,6 +44,14 @@ secrets are also removed from textual response previews. Cookie values and
 Set-Cookie headers are never persisted in clear text in execution history. The
 execution engine does not write request plans, bodies, or response contents to
 application logs.
+
+Variable values are stored only in the local PostgreSQL installation so they
+can be reused. The local trust boundary therefore includes database access.
+Marked values are password-masked in the normal editor and never returned in
+resolution previews, execution snapshots, resolved display URLs, or textual
+response history. Secret taint propagates through nested interpolation, and
+temporary runtime overrides are never persisted as configuration. Exports omit
+secrets by default when the export phase is implemented.
 
 ## Dependencies and images
 

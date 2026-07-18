@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Braces,
   Copy,
   FileUp,
   LoaderCircle,
@@ -25,15 +26,23 @@ import {
   type SavedRequestDetail,
 } from "@/features/requests/domain";
 import type { FolderNode } from "@/features/workspaces/domain";
+import type {
+  ResolvedVariable,
+  VariableResolutionError,
+  VariableValue,
+} from "@/features/variables/domain";
+import type { RequestResolutionPreview } from "@/features/variables/resolution";
 import { cn } from "@/lib/utils";
 
 import { RequestFieldEditor } from "./request-field-editor";
 import { ResponseViewer } from "./response-viewer";
+import { VariableRowsEditor } from "./variable-rows-editor";
 
 const requestTabs = [
   "Params",
   "Headers",
   "Cookies",
+  "Variables",
   "Body",
   "Settings",
 ] as const;
@@ -69,6 +78,7 @@ function normaliseDraft(detail: SavedRequestDetail) {
       enabled: field.enabled,
     })),
     headers: detail.headers,
+    requestVariables: detail.requestVariables,
     body: detail.body,
     settings: detail.settings,
   };
@@ -98,6 +108,14 @@ export function RequestEditor({
   const [selectedExecution, setSelectedExecution] =
     useState<ExecutionDetail | null>(null);
   const [savedSignature, setSavedSignature] = useState("");
+  const [runtimeVariables, setRuntimeVariables] = useState<VariableValue[]>([]);
+  const [resolution, setResolution] = useState<{
+    preview: RequestResolutionPreview;
+    variables: Array<Omit<ResolvedVariable, "value">>;
+    unresolved: string[];
+    errors: VariableResolutionError[];
+  } | null>(null);
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -159,7 +177,7 @@ export function RequestEditor({
       const response = await fetch(`/api/requests/${detail.id}/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ executionId }),
+        body: JSON.stringify({ executionId, runtimeVariables }),
       });
       const payload: unknown = await response.json();
       if (!response.ok) {
@@ -201,7 +219,52 @@ export function RequestEditor({
       setExecutingId(null);
       setCancelling(false);
     }
-  }, [detail, executingId, onNotice, onRefresh, save]);
+  }, [detail, executingId, onNotice, onRefresh, runtimeVariables, save]);
+
+  const previewResolution = async () => {
+    if (!detail || !(await save())) return;
+    setResolving(true);
+    try {
+      const response = await fetch(`/api/requests/${detail.id}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runtimeVariables }),
+      });
+      const payload = (await response.json()) as
+        | {
+            preview: RequestResolutionPreview;
+            variables: Array<Omit<ResolvedVariable, "value">>;
+            unresolved: string[];
+            errors: VariableResolutionError[];
+          }
+        | { error: string };
+      if (!response.ok || "error" in payload) {
+        throw new Error(
+          "error" in payload
+            ? payload.error
+            : "Variables could not be resolved.",
+        );
+      }
+      setResolution(payload);
+      onNotice(
+        payload.unresolved.length || payload.errors.length
+          ? "error"
+          : "success",
+        payload.unresolved.length || payload.errors.length
+          ? "Resolution preview found issues."
+          : "Resolution preview is ready.",
+      );
+    } catch (error) {
+      onNotice(
+        "error",
+        error instanceof Error
+          ? error.message
+          : "Variables could not be resolved.",
+      );
+    } finally {
+      setResolving(false);
+    }
+  };
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -368,7 +431,9 @@ export function RequestEditor({
                     ? detail.headers.length
                     : item === "Cookies"
                       ? detail.settings.cookies.length
-                      : null;
+                      : item === "Variables"
+                        ? detail.requestVariables.length
+                        : null;
               return (
                 <button
                   className={cn(
@@ -410,6 +475,147 @@ export function RequestEditor({
                   update({ settings: { ...detail.settings, cookies } })
                 }
               />
+            ) : null}
+            {tab === "Variables" ? (
+              <div className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1.5 text-xs font-medium">
+                    Workspace environment
+                    <select
+                      aria-label="Workspace environment"
+                      className="h-9 w-full rounded-md border bg-surface-subtle px-2.5 text-xs"
+                      onChange={(event) =>
+                        update({
+                          settings: {
+                            ...detail.settings,
+                            workspaceEnvironmentId: event.target.value || null,
+                          },
+                        })
+                      }
+                      value={detail.settings.workspaceEnvironmentId ?? ""}
+                    >
+                      <option value="">No workspace environment</option>
+                      {detail.availableEnvironments.workspace.map(
+                        (environment) => (
+                          <option key={environment.id} value={environment.id}>
+                            {environment.name}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-xs font-medium">
+                    Project environment
+                    <select
+                      aria-label="Project environment"
+                      className="h-9 w-full rounded-md border bg-surface-subtle px-2.5 text-xs"
+                      onChange={(event) =>
+                        update({
+                          settings: {
+                            ...detail.settings,
+                            projectEnvironmentId: event.target.value || null,
+                          },
+                        })
+                      }
+                      value={detail.settings.projectEnvironmentId ?? ""}
+                    >
+                      <option value="">No project environment</option>
+                      {detail.availableEnvironments.project.map(
+                        (environment) => (
+                          <option key={environment.id} value={environment.id}>
+                            {environment.name}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-semibold">Request variables</h3>
+                  <p className="mt-1 mb-2 text-[11px] text-muted">
+                    Persisted with this request and resolved above generated,
+                    project, and workspace values.
+                  </p>
+                  <VariableRowsEditor
+                    onChange={(requestVariables) =>
+                      update({ requestVariables })
+                    }
+                    variables={detail.requestVariables}
+                  />
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-semibold">
+                    Temporary runtime overrides
+                  </h3>
+                  <p className="mt-1 mb-2 text-[11px] text-muted">
+                    Used for the next preview or send only. These values are
+                    never saved.
+                  </p>
+                  <VariableRowsEditor
+                    defaultSecret
+                    emptyLabel="No temporary overrides."
+                    onChange={setRuntimeVariables}
+                    variables={runtimeVariables}
+                  />
+                </div>
+
+                <Button
+                  disabled={resolving}
+                  onClick={previewResolution}
+                  variant="secondary"
+                >
+                  <Braces aria-hidden="true" className="size-4" />
+                  {resolving ? "Resolving…" : "Preview resolved request"}
+                </Button>
+
+                {resolution ? (
+                  <div className="space-y-3 rounded-lg border bg-code-background p-4 font-mono text-xs">
+                    <div>
+                      <span className="text-muted">Resolved URL</span>
+                      <p className="mt-1 break-all text-foreground">
+                        {resolution.preview.url}
+                      </p>
+                    </div>
+                    {resolution.unresolved.length ? (
+                      <p className="text-red-400">
+                        Unresolved: {resolution.unresolved.join(", ")}
+                      </p>
+                    ) : null}
+                    {resolution.errors.map((error) => (
+                      <p
+                        className="text-red-400"
+                        key={`${error.code}:${error.path.join(":")}`}
+                      >
+                        {error.message}
+                      </p>
+                    ))}
+                    <div className="grid gap-1 border-t pt-3">
+                      {resolution.variables.length ? (
+                        resolution.variables.map((variable) => (
+                          <div
+                            className="grid gap-2 sm:grid-cols-[140px_1fr_220px]"
+                            key={variable.name}
+                          >
+                            <span>{variable.name}</span>
+                            <span className="truncate text-accent">
+                              {variable.preview}
+                            </span>
+                            <span className="truncate text-muted">
+                              {variable.originLabel}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-muted">
+                          No variables are active.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
             {tab === "Body" ? (
               <div className="space-y-3">

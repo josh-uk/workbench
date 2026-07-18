@@ -5,6 +5,11 @@ import {
   entityIdSchema,
   entityNameSchema,
 } from "@/features/workspaces/domain";
+import {
+  runtimeVariablesSchema,
+  type VariableValue,
+  variableValuesSchema,
+} from "@/features/variables/domain";
 
 export const httpMethods = [
   "GET",
@@ -65,6 +70,8 @@ export const requestSettingsSchema = z.object({
     .default(1_048_576),
   allowPrivateNetwork: z.boolean().default(false),
   cookies: z.array(requestCookieSchema).max(100).default([]),
+  workspaceEnvironmentId: entityIdSchema.nullable().optional(),
+  projectEnvironmentId: entityIdSchema.nullable().optional(),
 });
 
 export const requestBodySchema = z.object({
@@ -96,6 +103,7 @@ export const updateSavedRequestSchema = z.object({
   tags: z.array(z.string().trim().min(1).max(64)).max(50).default([]),
   queryParameters: z.array(requestFieldSchema.omit({ secret: true })).max(200),
   headers: z.array(requestFieldSchema).max(200),
+  requestVariables: variableValuesSchema.default([]),
   body: requestBodySchema,
   settings: requestSettingsSchema,
 });
@@ -112,6 +120,11 @@ export const relocateSavedRequestSchema = requestIdSchema.extend({
 
 export const executeSavedRequestSchema = z.object({
   executionId: entityIdSchema,
+  runtimeVariables: runtimeVariablesSchema,
+});
+
+export const resolveSavedRequestSchema = z.object({
+  runtimeVariables: runtimeVariablesSchema,
 });
 
 export interface RequestField {
@@ -145,6 +158,11 @@ export interface SavedRequestDetail extends SavedRequestSummary {
   tags: string[];
   queryParameters: RequestField[];
   headers: RequestField[];
+  requestVariables: VariableValue[];
+  availableEnvironments: {
+    workspace: Array<{ id: string; name: string }>;
+    project: Array<{ id: string; name: string }>;
+  };
   body: RequestBody;
   settings: RequestSettings;
   history: ExecutionDetail[];

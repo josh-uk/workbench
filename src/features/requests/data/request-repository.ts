@@ -5,6 +5,7 @@ import { and, asc, desc, eq, inArray, isNull, max, ne, sql } from "drizzle-orm";
 import { getDatabase } from "@/db/client";
 import {
   folders,
+  environments,
   projects,
   requestBodies,
   requestExecutions,
@@ -12,6 +13,7 @@ import {
   requestQueryParameters,
   responseMetadata,
   savedRequests,
+  variables,
 } from "@/db/schema";
 import {
   createRequestCopyName,
@@ -59,7 +61,7 @@ function folderScopeCondition(projectId: string, folderId: string | null) {
 
 async function getProject(executor: QueryExecutor, id: string) {
   const [project] = await executor
-    .select({ id: projects.id })
+    .select({ id: projects.id, workspaceId: projects.workspaceId })
     .from(projects)
     .where(eq(projects.id, id))
     .limit(1);
@@ -218,7 +220,15 @@ export async function getSavedRequestDetail(
 ): Promise<SavedRequestDetail> {
   const database = getDatabase();
   const request = await getRequestRow(database, id);
-  const [headers, queryParameters, bodyRows, history] = await Promise.all([
+  const project = await getProject(database, request.projectId);
+  const [
+    headers,
+    queryParameters,
+    bodyRows,
+    requestVariableRows,
+    environmentRows,
+    history,
+  ] = await Promise.all([
     database
       .select()
       .from(requestHeaders)
@@ -234,6 +244,20 @@ export async function getSavedRequestDetail(
       .from(requestBodies)
       .where(eq(requestBodies.requestId, id))
       .limit(1),
+    database
+      .select()
+      .from(variables)
+      .where(and(eq(variables.scope, "request"), eq(variables.requestId, id)))
+      .orderBy(asc(variables.name)),
+    database
+      .select({
+        id: environments.id,
+        name: environments.name,
+        projectId: environments.projectId,
+      })
+      .from(environments)
+      .where(eq(environments.workspaceId, project.workspaceId))
+      .orderBy(asc(environments.name)),
     getHistory(database, id),
   ]);
   const body = bodyRows[0];
@@ -250,6 +274,18 @@ export async function getSavedRequestDetail(
     tags: request.tags,
     queryParameters: queryParameters.map(toField),
     headers: headers.map(toField),
+    requestVariables: requestVariableRows.map((variable) => ({
+      name: variable.name,
+      value: variable.value,
+      secret: variable.secret,
+      enabled: variable.enabled,
+    })),
+    availableEnvironments: {
+      workspace: environmentRows.filter(({ projectId }) => !projectId),
+      project: environmentRows.filter(
+        ({ projectId }) => projectId === request.projectId,
+      ),
+    },
     body: body
       ? {
           type: body.type,
@@ -388,6 +424,21 @@ export async function updateSavedRequest(values: SavedRequestValues) {
     }
 
     await transaction
+      .delete(variables)
+      .where(
+        and(eq(variables.scope, "request"), eq(variables.requestId, values.id)),
+      );
+    if (values.requestVariables.length) {
+      await transaction.insert(variables).values(
+        values.requestVariables.map((variable) => ({
+          requestId: values.id,
+          scope: "request" as const,
+          ...variable,
+        })),
+      );
+    }
+
+    await transaction
       .insert(requestBodies)
       .values({ requestId: values.id, ...values.body })
       .onConflictDoUpdate({
@@ -448,6 +499,15 @@ export async function duplicateSavedRequest(id: string) {
           value: parameter.value,
           enabled: parameter.enabled,
           position: index,
+        })),
+      );
+    }
+    if (source.requestVariables.length) {
+      await transaction.insert(variables).values(
+        source.requestVariables.map((variable) => ({
+          requestId: copy.id,
+          scope: "request" as const,
+          ...variable,
         })),
       );
     }

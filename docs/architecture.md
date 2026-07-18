@@ -52,11 +52,13 @@ of the documented local trust model, not a reason to trust client input.
 
 Saved requests use the same validated Server Action and server-only repository
 boundary for persistence. Thin Node.js route handlers load an execution plan,
+resolve workspace, environment, project, request, and temporary variables,
 create a history record, register cancellation, invoke the framework-independent
-HTTP engine, and persist a redacted result. The executor uses Node HTTP/HTTPS
-sockets with validated, pinned DNS addresses so browser CORS behavior and DNS
-rebinding do not control outbound security. The browser receives only bounded
-request and execution DTOs.
+HTTP engine, and persist a redacted result. Resolution tracks secret taint
+through nested interpolation so a non-secret template that references a secret
+is still masked. The executor uses Node HTTP/HTTPS sockets with validated,
+pinned DNS addresses so browser CORS behavior and DNS rebinding do not control
+outbound security. The browser receives only bounded request and execution DTOs.
 
 ## Data flow
 

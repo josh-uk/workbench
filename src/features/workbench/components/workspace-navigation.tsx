@@ -43,16 +43,24 @@ import { RequestNavigationItem } from "./request-navigation";
 import { MenuContent, menuItemClass } from "./workbench-menu";
 
 export function NavigationItem({
+  active = false,
   icon: Icon,
   label,
+  onClick,
 }: {
+  active?: boolean;
   icon: typeof History;
   label: string;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground"
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground",
+        active && "bg-surface-strong text-foreground",
+      )}
+      onClick={onClick}
     >
       <Icon aria-hidden="true" className="size-3.5" />
       {label}
