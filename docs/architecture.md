@@ -42,6 +42,14 @@ and database connection.
 Each subsystem exposes typed application interfaces so a future headless CLI can
 reuse the core without importing React.
 
+Workspace management follows the recommended data-access-layer pattern. The
+server page waits for a request with Next.js `connection()`, loads a minimal
+navigation DTO through a `server-only` repository, and passes only that DTO to
+the interactive client shell. Server Actions validate every argument with Zod,
+delegate to the repository, return bounded error results, and revalidate the
+page after successful mutations. The absence of application accounts is part
+of the documented local trust model, not a reason to trust client input.
+
 ## Data flow
 
 1. The browser submits validated user intent to a server endpoint.

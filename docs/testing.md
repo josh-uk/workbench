@@ -13,6 +13,12 @@
 Tests never call public internet services. Fixtures contain only generic fake
 data. Secrets are forbidden in snapshots and screenshots.
 
+Workspace repository tests require `TEST_DATABASE_URL` and truncate only that
+isolated database between cases. They cover active-workspace persistence,
+ordering, archive state, nested folders, duplication, cascade behavior, naming
+conflicts, and cycle rejection. Playwright uses unique workspace and project
+names so repeated local runs do not depend on an empty installation.
+
 CI runs formatting, linting, strict type checking, unit coverage, component
 tests, migration checks, integration tests, a production build, Playwright,
 container build, and a high-severity dependency audit. Failure artifacts include

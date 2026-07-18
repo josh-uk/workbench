@@ -25,6 +25,19 @@ its parent. Historical executions preserve a nullable request reference so a
 deleted request does not invalidate the entire project history. Workflow steps
 restrict request deletion until the workflow is updated.
 
+Workspace and project names are unique in their scope. The repository adds a
+case-insensitive availability check so names that differ only by casing cannot
+be created through the application. Folder names are unique among siblings at
+the application boundary. Folder moves verify project ownership and reject
+self-parenting and descendant cycles before changing the parent reference.
+
+Deleting a workspace or project cascades through its owned hierarchy. Deleting
+a folder cascades through nested folders, while saved requests in those folders
+survive with a `NULL` folder reference and appear at the project root. The
+single-user active workspace is stored as the
+`navigation.activeWorkspaceId` application setting and falls back to the first
+ordered workspace when its target no longer exists.
+
 Imported definitions retain the original source document and structured
 operation records. Custom saved requests are separate records, so refreshing an
 import cannot silently overwrite them.
