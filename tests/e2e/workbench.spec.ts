@@ -17,6 +17,9 @@ const tokenRequestName = documentationMode
 const authProfileName = documentationMode
   ? "Service OAuth"
   : `Derived OAuth ${runId}`;
+const clientCredentialsProfileName = documentationMode
+  ? "Service client credentials"
+  : `Client OAuth ${runId}`;
 const protectedRequestName = documentationMode
   ? "Protected fact"
   : `Protected fact ${runId}`;
@@ -295,6 +298,21 @@ test.describe.serial("workspace and project management", () => {
     await expect(page.getByText("Request saved.")).toBeVisible();
 
     await page.getByRole("button", { name: "Authentication profiles" }).click();
+    await page.getByRole("button", { name: "New profile" }).click();
+    await page.getByLabel("Name").fill(clientCredentialsProfileName);
+    await page.getByLabel("Type").selectOption("oauth2_client_credentials");
+    await page
+      .getByLabel("Token URL")
+      .fill("https://identity.example.test/oauth/token");
+    await page.getByLabel("Client ID").fill("workbench-demo");
+    await page.getByLabel("Client secret").fill("not-a-real-secret");
+    await page.getByLabel("Scope", { exact: true }).fill("facts:read");
+    await page.getByLabel("Audience").fill("facts-api");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Authentication profile saved.")).toBeVisible();
+    await expectNoAccessibilityViolations(page);
+    await captureDocumentation(page, "phase-10-oauth-client-credentials");
+
     await page.getByRole("button", { name: "New profile" }).click();
     await page.getByLabel("Name").fill(authProfileName);
     await page.getByLabel("Type").selectOption("request_derived");

@@ -29,6 +29,24 @@ header field copied between requests. Workbench supports bearer tokens, Basic
 auth, API keys, OAuth 2.0 client credentials, password and refresh-token grants,
 and request-derived profiles.
 
+| Profile type             | Intended use                                                      |
+| ------------------------ | ----------------------------------------------------------------- |
+| None                     | Send the request without an authentication profile                |
+| Bearer token             | Inject a reusable token into a configurable header                |
+| Basic authentication     | Build a Basic header from a reusable username and password        |
+| API key · header         | Inject a reusable key into a named request header                 |
+| API key · query          | Inject a reusable key into a named query parameter                |
+| OAuth client credentials | Obtain and cache a service token with client credentials          |
+| OAuth password           | Obtain and refresh a token with user credentials                  |
+| OAuth refresh token      | Exchange a configured refresh token for an access token           |
+| Request-derived          | Run a saved token request and inject one of its published outputs |
+
+OAuth profiles configure the token endpoint, client identity, scope, audience,
+response JSONPaths, injection target, and failure behavior. Access and refresh
+tokens are cached server-side and refreshed before expiry.
+
+![OAuth client credentials profile](docs/images/phase-10-oauth-client-credentials.png)
+
 A request-derived profile connects normal saved requests into an authentication
 flow:
 
