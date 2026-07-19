@@ -83,7 +83,7 @@ stored full backup through Settings.
 The tenth browser flow verifies the command palette and global keyboard
 shortcuts, then runs Axe against the overview, request/response editor, variable
 editor, authentication editor, OpenAPI preview, workflow report, backup
-settings, and command palette. The same suite can regenerate the eight stable
+settings, and command palette. The same suite can regenerate the nine stable
 documentation screenshots with `npm run screenshots`; see
 [development.md](development.md#documentation-screenshots) for the isolated
 database workflow.

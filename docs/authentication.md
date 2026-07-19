@@ -22,6 +22,8 @@ response JSONPaths, injection target, and failure behavior. OAuth token endpoint
 run through the normal protocol, DNS, redirect, private-network, metadata,
 timeout, TLS, and response-size controls.
 
+![OAuth client credentials profile](images/phase-10-oauth-client-credentials.png)
+
 ![Authentication profiles](images/phase-10-authentication.png)
 
 ## Token lifecycle
