@@ -353,7 +353,7 @@ export function FolderTree({
           <Folder aria-hidden="true" className="mr-2 size-3.5 shrink-0" />
           <span className="min-w-0 flex-1 truncate py-1.5">{folder.name}</span>
           {folder.requestCount ? (
-            <span className="mr-1 font-mono text-[10px]">
+            <span className="mr-1 font-mono text-[0.625rem]">
               {folder.requestCount}
             </span>
           ) : null}
@@ -439,7 +439,7 @@ export function WorkspaceMenu({
         </button>
       </DropdownMenu.Trigger>
       <MenuContent>
-        <DropdownMenu.Label className="px-2 py-1 text-[10px] font-semibold tracking-wider text-muted uppercase">
+        <DropdownMenu.Label className="px-2 py-1 text-[0.625rem] font-semibold tracking-wider text-muted uppercase">
           Workspaces
         </DropdownMenu.Label>
         {navigation.workspaces.map((workspace) => (

@@ -53,7 +53,7 @@ export function RequestNavigationItem({
       >
         <span
           className={cn(
-            "w-10 shrink-0 font-mono text-[9px] font-bold",
+            "w-10 shrink-0 font-mono text-[0.5625rem] font-bold",
             methodTone[request.method],
           )}
         >

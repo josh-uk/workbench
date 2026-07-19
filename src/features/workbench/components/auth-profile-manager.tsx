@@ -21,7 +21,7 @@ import {
   type AuthConfiguration,
   type AuthProfileConfiguration,
   type AuthProfileDetail,
-  type AuthSecretField,
+  type AuthReferenceField,
   type AuthType,
   authTypes,
   defaultAuthConfiguration,
@@ -101,16 +101,18 @@ function TextField({
   );
 }
 
-function SecretField({
+function VaultBackedField({
   configuration,
   label,
   name,
   onChange,
+  secret = true,
 }: {
   configuration: AuthProfileConfiguration;
   label: string;
-  name: AuthSecretField;
+  name: AuthReferenceField;
   onChange: (configuration: AuthProfileConfiguration) => void;
+  secret?: boolean;
 }) {
   const reference = configuration.secretReferences[name];
   const [testing, setTesting] = useState(false);
@@ -164,7 +166,7 @@ function SecretField({
     <div className="space-y-2 rounded-lg border bg-surface-subtle p-3 sm:col-span-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-medium">{label}</p>
-        <label className="flex items-center gap-2 text-[11px] text-muted">
+        <label className="flex items-center gap-2 text-[0.6875rem] text-muted">
           Source
           <select
             aria-label={`${label} source`}
@@ -197,7 +199,7 @@ function SecretField({
       </div>
       {reference ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-[11px] font-medium sm:col-span-2">
+          <label className="space-y-1 text-[0.6875rem] font-medium sm:col-span-2">
             Vault URL
             <input
               aria-label={`${label} vault URL`}
@@ -210,7 +212,7 @@ function SecretField({
               value={reference.vaultUrl}
             />
           </label>
-          <label className="space-y-1 text-[11px] font-medium">
+          <label className="space-y-1 text-[0.6875rem] font-medium">
             Secret name
             <input
               aria-label={`${label} secret name`}
@@ -222,7 +224,7 @@ function SecretField({
               value={reference.secretName}
             />
           </label>
-          <label className="space-y-1 text-[11px] font-medium">
+          <label className="space-y-1 text-[0.6875rem] font-medium">
             Version <span className="font-normal text-muted">Optional</span>
             <input
               aria-label={`${label} secret version`}
@@ -250,14 +252,14 @@ function SecretField({
               )}{" "}
               Test reference
             </Button>
-            <p className="text-[11px] text-muted">
+            <p className="text-[0.6875rem] text-muted">
               Without a version, requests use the latest secret.
             </p>
           </div>
           {testResult ? (
             <p
               className={cn(
-                "text-[11px] sm:col-span-2",
+                "text-[0.6875rem] sm:col-span-2",
                 testResult.ok ? "text-success" : "text-red-500",
               )}
               role="status"
@@ -273,7 +275,7 @@ function SecretField({
           onChange={(event) =>
             onChange({ ...configuration, [name]: event.target.value })
           }
-          type="password"
+          type={secret ? "password" : "text"}
           value={configuration[name]}
         />
       )}
@@ -411,7 +413,7 @@ export function AuthProfileManager({
             <ArrowLeft aria-hidden="true" className="size-4" />
           </Button>
           <div>
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">
+            <p className="text-[0.625rem] font-semibold tracking-[0.14em] text-muted uppercase">
               {project
                 ? `${project.name} configuration`
                 : "Workspace configuration"}
@@ -465,7 +467,7 @@ export function AuthProfileManager({
                   type="button"
                 >
                   {profile.name}
-                  <span className="mt-0.5 block text-[10px] font-normal text-muted">
+                  <span className="mt-0.5 block text-[0.625rem] font-normal text-muted">
                     {profile.type.replaceAll("_", " ")} ·{" "}
                     {profile.inherited
                       ? "workspace inherited"
@@ -552,7 +554,7 @@ export function AuthProfileManager({
 
                 {draft.type === "bearer" ? (
                   <>
-                    <SecretField
+                    <VaultBackedField
                       configuration={config}
                       label="Bearer token"
                       name="token"
@@ -580,7 +582,7 @@ export function AuthProfileManager({
                       name="username"
                       onChange={updateConfiguration}
                     />
-                    <SecretField
+                    <VaultBackedField
                       configuration={config}
                       label="Password"
                       name="password"
@@ -597,7 +599,7 @@ export function AuthProfileManager({
                 {draft.type === "api_key_header" ||
                 draft.type === "api_key_query" ? (
                   <>
-                    <SecretField
+                    <VaultBackedField
                       configuration={config}
                       label="API key"
                       name="key"
@@ -628,13 +630,14 @@ export function AuthProfileManager({
                       name="tokenUrl"
                       onChange={updateConfiguration}
                     />
-                    <TextField
+                    <VaultBackedField
                       configuration={config}
                       label="Client ID"
                       name="clientId"
                       onChange={updateConfiguration}
+                      secret={false}
                     />
-                    <SecretField
+                    <VaultBackedField
                       configuration={config}
                       label="Client secret"
                       name="clientSecret"
@@ -660,7 +663,7 @@ export function AuthProfileManager({
                           name="username"
                           onChange={updateConfiguration}
                         />
-                        <SecretField
+                        <VaultBackedField
                           configuration={config}
                           label="Password"
                           name="password"
@@ -669,7 +672,7 @@ export function AuthProfileManager({
                       </>
                     ) : null}
                     {draft.type === "oauth2_refresh_token" ? (
-                      <SecretField
+                      <VaultBackedField
                         configuration={config}
                         label="Refresh token"
                         name="refreshToken"

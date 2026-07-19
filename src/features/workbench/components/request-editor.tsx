@@ -426,7 +426,7 @@ export function RequestEditor({
               <Send aria-hidden="true" className="size-4" /> Send
               <kbd
                 aria-hidden="true"
-                className="ml-1 rounded bg-black/15 px-1 text-[9px]"
+                className="ml-1 rounded bg-black/15 px-1 text-[0.5625rem]"
               >
                 ⌘↵
               </kbd>
@@ -441,7 +441,9 @@ export function RequestEditor({
             value={detail.name}
           />
           {dirty ? (
-            <span className="text-[10px] text-warning">Unsaved changes</span>
+            <span className="text-[0.625rem] text-warning">
+              Unsaved changes
+            </span>
           ) : null}
           <div className="ml-auto flex items-center gap-1">
             <Button
@@ -454,7 +456,7 @@ export function RequestEditor({
               {saving ? "Saving…" : "Save"}
               <kbd
                 aria-hidden="true"
-                className="ml-1 rounded bg-surface-strong px-1 text-[9px]"
+                className="ml-1 rounded bg-surface-strong px-1 text-[0.5625rem]"
               >
                 ⌘S
               </kbd>
@@ -478,7 +480,7 @@ export function RequestEditor({
           </div>
         </div>
         {detail.importSource ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-accent/25 bg-accent/10 px-3 py-2 text-[11px]">
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-accent/25 bg-accent/10 px-3 py-2 text-[0.6875rem]">
             <span className="min-w-0 flex-1 text-muted">
               Imported from{" "}
               <span className="font-medium text-foreground">
@@ -516,7 +518,7 @@ export function RequestEditor({
               return (
                 <button
                   className={cn(
-                    "border-b-2 border-transparent px-3 py-2.5 text-[11px] font-medium text-muted",
+                    "border-b-2 border-transparent px-3 py-2.5 text-[0.6875rem] font-medium text-muted",
                     tab === item && "border-accent text-foreground",
                   )}
                   key={item}
@@ -646,7 +648,7 @@ export function RequestEditor({
 
                 <div>
                   <h3 className="text-xs font-semibold">Request variables</h3>
-                  <p className="mt-1 mb-2 text-[11px] text-muted">
+                  <p className="mt-1 mb-2 text-[0.6875rem] text-muted">
                     Persisted with this request and resolved above generated,
                     project, and workspace values.
                   </p>
@@ -662,7 +664,7 @@ export function RequestEditor({
                   <h3 className="text-xs font-semibold">
                     Temporary runtime overrides
                   </h3>
-                  <p className="mt-1 mb-2 text-[11px] text-muted">
+                  <p className="mt-1 mb-2 text-[0.6875rem] text-muted">
                     Used for the next preview or send only. These values are
                     never saved.
                   </p>
@@ -824,7 +826,7 @@ export function RequestEditor({
               <div className="space-y-4">
                 <div>
                   <h3 className="text-xs font-semibold">Published outputs</h3>
-                  <p className="mt-1 text-[11px] leading-5 text-muted">
+                  <p className="mt-1 text-[0.6875rem] leading-5 text-muted">
                     Extract values from successful JSON responses. The newest
                     unexpired value becomes a generated variable for later
                     requests in this project.
@@ -950,7 +952,7 @@ export function RequestEditor({
               <div className="space-y-4">
                 <div>
                   <h3 className="text-xs font-semibold">Response assertions</h3>
-                  <p className="mt-1 text-[11px] leading-5 text-muted">
+                  <p className="mt-1 text-[0.6875rem] leading-5 text-muted">
                     Assertions run after every send and are stored with the
                     execution report. They use the same evaluator as workflows
                     and future headless runs.

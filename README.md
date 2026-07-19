@@ -79,14 +79,14 @@ device-code flow entirely in the UI—there is no terminal command and no
 user-created Microsoft Entra application registration. Workbench supports Key
 Vault references for:
 
-| Authentication profile   | Key Vault-backed fields         |
-| ------------------------ | ------------------------------- |
-| Bearer token             | Token                           |
-| Basic authentication     | Password                        |
-| API key                  | Key value                       |
-| OAuth client credentials | Client secret                   |
-| OAuth password           | Client secret and password      |
-| OAuth refresh token      | Client secret and refresh token |
+| Authentication profile   | Key Vault-backed fields                     |
+| ------------------------ | ------------------------------------------- |
+| Bearer token             | Token                                       |
+| Basic authentication     | Password                                    |
+| API key                  | Key value                                   |
+| OAuth client credentials | Client ID and client secret                 |
+| OAuth password           | Client ID, client secret, and password      |
+| OAuth refresh token      | Client ID, client secret, and refresh token |
 
 Each reference identifies a vault URL, secret name, and optional exact version.
 Omitting the version follows the latest secret, enabling rotation without
@@ -213,9 +213,11 @@ Read [Workflows and assertions](docs/workflows-and-assertions.md).
 
 Prerequisite: Docker Desktop or Docker Engine with Compose.
 
+Download or copy [`docker-compose.yml`](docker-compose.yml) into an empty
+directory, then start Workbench using the published release image. Cloning the
+repository is not required.
+
 ```bash
-git clone https://github.com/josh-uk/workbench.git
-cd workbench
 docker compose up -d
 ```
 
@@ -234,9 +236,11 @@ docker compose down
 
 The `workbench_postgres_data`, `workbench_backups`, and
 `workbench_azure_cli` volumes preserve the database, logical backups, and
-optional Azure sign-in respectively. Compose defaults use development
-credentials; set unique `POSTGRES_*` values before exposing the database beyond
-the local Docker network.
+optional Azure sign-in respectively. Compose pulls
+`ghcr.io/josh-uk/workbench:latest` by default. Set `WORKBENCH_IMAGE` to pin a
+version such as `ghcr.io/josh-uk/workbench:1.1.1`. Compose defaults use
+development credentials; set unique `POSTGRES_*` values before exposing the
+database beyond the local Docker network.
 
 ### Container images
 
@@ -247,7 +251,7 @@ Every verified merge to `master` publishes a non-root, multi-platform image for
 ghcr.io/josh-uk/workbench
 ```
 
-Images receive `latest` and full-commit-SHA tags. Version tags such as `v1.1.0`
+Images receive `latest` and full-commit-SHA tags. Version tags such as `v1.1.1`
 also publish semantic-version tags, an SBOM, build provenance, and a GitHub
 release. GitHub Container Registry visibility is managed separately from the
 public repository.
@@ -274,6 +278,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 | Name                        | Purpose                                        | Compose default                      |
 | --------------------------- | ---------------------------------------------- | ------------------------------------ |
+| `WORKBENCH_IMAGE`           | Published Workbench image or pinned version    | `ghcr.io/josh-uk/workbench:latest`   |
 | `DATABASE_URL`              | Server-only PostgreSQL connection URL          | Generated from the PostgreSQL values |
 | `POSTGRES_DB`               | Local database name                            | `workbench`                          |
 | `POSTGRES_USER`             | Local database user                            | `workbench`                          |

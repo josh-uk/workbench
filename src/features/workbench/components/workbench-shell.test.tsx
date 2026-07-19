@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WorkbenchShell } from "./workbench-shell";
 
@@ -80,6 +80,8 @@ vi.mock("@/features/workflows/actions", () => ({
 }));
 
 describe("WorkbenchShell", () => {
+  beforeEach(() => window.localStorage.clear());
+
   it("guides an empty installation into workspace creation", async () => {
     const user = userEvent.setup();
     render(
@@ -169,5 +171,26 @@ describe("WorkbenchShell", () => {
     expect(
       screen.getByRole("button", { name: "Collapse sidebar" }),
     ).toBeVisible();
+  });
+
+  it("restores and persists the selected colour theme", async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem("workbench.theme", "light");
+    render(
+      <WorkbenchShell
+        navigation={{ activeWorkspaceId: null, workspaces: [] }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Use dark theme" }),
+      ).toBeVisible(),
+    );
+    expect(document.querySelector("[data-theme='light']")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Use dark theme" }));
+    expect(window.localStorage.getItem("workbench.theme")).toBe("dark");
+    expect(document.querySelector("[data-theme='dark']")).toBeVisible();
   });
 });

@@ -117,19 +117,19 @@ export function ResponseViewer({
         </span>
         {response ? (
           <>
-            <span className="font-mono text-[10px] text-muted">
+            <span className="font-mono text-[0.625rem] text-muted">
               {response.durationMs} ms
             </span>
-            <span className="font-mono text-[10px] text-muted">
+            <span className="font-mono text-[0.625rem] text-muted">
               {response.sizeBytes?.toLocaleString()} bytes
             </span>
             {response.bodyTruncated ? (
-              <span className="text-[10px] text-warning">
+              <span className="text-[0.625rem] text-warning">
                 Preview truncated
               </span>
             ) : null}
             {execution.assertionsPassed === false ? (
-              <span className="text-[10px] font-medium text-red-500">
+              <span className="text-[0.625rem] font-medium text-red-500">
                 Assertions failed
               </span>
             ) : null}
@@ -162,7 +162,7 @@ export function ResponseViewer({
         {responseTabs.map((item) => (
           <button
             className={cn(
-              "border-b-2 border-transparent px-3 py-2.5 text-[11px] font-medium text-muted",
+              "border-b-2 border-transparent px-3 py-2.5 text-[0.6875rem] font-medium text-muted",
               tab === item && "border-accent text-foreground",
             )}
             key={item}
@@ -181,20 +181,25 @@ export function ResponseViewer({
               className="absolute top-2 left-2 size-3 text-muted"
             />
             <input
-              className="h-7 w-44 rounded-md border bg-surface-subtle pr-8 pl-7 text-[11px]"
+              className="h-7 w-44 rounded-md border bg-surface-subtle pr-8 pl-7 text-[0.6875rem]"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Find in response"
               value={query}
             />
             {query ? (
-              <span className="absolute top-1.5 right-2 font-mono text-[9px] text-muted">
+              <span className="absolute top-1.5 right-2 font-mono text-[0.5625rem] text-muted">
                 {matchCount}
               </span>
             ) : null}
           </label>
         ) : null}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div
+        aria-label="Response content"
+        className="min-h-0 flex-1 overflow-auto p-4"
+        role="region"
+        tabIndex={0}
+      >
         {execution.error ? (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-500">
             <p className="font-mono font-semibold">{execution.error.code}</p>
@@ -255,7 +260,7 @@ export function ResponseViewer({
                   <span className="ml-2 font-mono text-muted">
                     {cookie.value}
                   </span>
-                  <p className="mt-1 text-[10px] text-muted">
+                  <p className="mt-1 text-[0.625rem] text-muted">
                     {cookie.attributes.join(" · ")}
                   </p>
                 </div>
@@ -277,7 +282,7 @@ export function ResponseViewer({
                   <span className="font-mono break-all text-muted">
                     {output.value}
                   </span>
-                  <span className="text-[10px] text-muted">
+                  <span className="text-[0.625rem] text-muted">
                     {output.expiresAt
                       ? `Expires ${new Date(output.expiresAt).toLocaleString()}`
                       : output.secret
@@ -310,7 +315,7 @@ export function ResponseViewer({
                       {result.passed ? "✓" : "✕"}
                     </span>
                     <span className="font-semibold">{result.name}</span>
-                    <span className="ml-auto font-mono text-[10px] text-muted">
+                    <span className="ml-auto font-mono text-[0.625rem] text-muted">
                       {result.owner.replace("_", " ")} · {result.type}
                     </span>
                   </div>
@@ -370,7 +375,7 @@ export function ResponseViewer({
                 <span className="min-w-0 flex-1 truncate text-muted">
                   {item.resolvedUrl}
                 </span>
-                <time className="text-[10px] text-muted">
+                <time className="text-[0.625rem] text-muted">
                   {new Date(item.createdAt).toLocaleString()}
                 </time>
               </button>

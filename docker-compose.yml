@@ -2,9 +2,7 @@ name: workbench
 
 services:
   app:
-    build:
-      context: .
-      target: runner
+    image: ${WORKBENCH_IMAGE:-ghcr.io/josh-uk/workbench:latest}
     init: true
     restart: unless-stopped
     environment:

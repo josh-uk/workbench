@@ -28,17 +28,17 @@ timeout, TLS, and response-size controls.
 
 ## Azure Key Vault credential sources
 
-The following secret-bearing fields can use either **Stored in Workbench** or
+The following credential fields can use either **Stored in Workbench** or
 **Azure Key Vault**:
 
-| Profile                    | Supported Key Vault fields      |
-| -------------------------- | ------------------------------- |
-| Bearer token               | Token                           |
-| Basic authentication       | Password                        |
-| API key in header or query | Key value                       |
-| OAuth client credentials   | Client secret                   |
-| OAuth password             | Client secret and password      |
-| OAuth refresh token        | Client secret and refresh token |
+| Profile                    | Supported Key Vault fields                  |
+| -------------------------- | ------------------------------------------- |
+| Bearer token               | Token                                       |
+| Basic authentication       | Password                                    |
+| API key in header or query | Key value                                   |
+| OAuth client credentials   | Client ID and client secret                 |
+| OAuth password             | Client ID, client secret, and password      |
+| OAuth refresh token        | Client ID, client secret, and refresh token |
 
 Request-derived authentication does not need a Key Vault source because it
 receives its value from a saved request output.
@@ -78,7 +78,7 @@ versions. Supplying a version keeps the profile pinned until the reference is
 edited.
 
 Only public Azure Key Vault hostnames ending in `.vault.azure.net` are accepted
-in v1.1.0. The hostname may resolve through a private endpoint, but the
+in v1.1.1. The hostname may resolve through a private endpoint, but the
 Workbench container must have the required DNS and network route. Sovereign
 Azure clouds are not yet supported.
 

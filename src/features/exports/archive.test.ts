@@ -148,7 +148,7 @@ describe("versioned export archives", () => {
       secretMode: "exclude",
     });
 
-    expect(manifest.appVersion).toBe("1.1.0");
+    expect(manifest.appVersion).toBe("1.1.1");
     expect(Buffer.from(archive).includes(Buffer.from("resolved-value"))).toBe(
       false,
     );

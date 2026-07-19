@@ -32,7 +32,7 @@ export function ProjectOverview({
 }) {
   if (!project) {
     return (
-      <div className="grid h-full place-items-center p-8">
+      <main className="grid min-w-0 flex-1 place-items-center bg-background p-8 text-center">
         <div className="max-w-md text-center">
           <div className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl border bg-surface-subtle text-accent shadow-sm">
             <Network aria-hidden="true" className="size-6" />
@@ -45,7 +45,7 @@ export function ProjectOverview({
             together without depending on a Git repository.
           </p>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -56,7 +56,7 @@ export function ProjectOverview({
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">
+            <div className="mb-2 flex items-center gap-2 text-[0.625rem] font-semibold tracking-[0.14em] text-muted uppercase">
               <span className="size-1.5 rounded-full bg-accent" /> Project
               overview
             </div>
@@ -129,7 +129,7 @@ export function ProjectOverview({
                 Nested folders are persisted in PostgreSQL.
               </p>
             </div>
-            <span className="rounded-full border bg-surface-subtle px-2.5 py-1 font-mono text-[10px] text-muted">
+            <span className="rounded-full border bg-surface-subtle px-2.5 py-1 font-mono text-[0.625rem] text-muted">
               {folderIds.length} total
             </span>
           </div>
@@ -148,7 +148,7 @@ export function ProjectOverview({
                     <p className="truncate text-sm font-medium">
                       {folder.name}
                     </p>
-                    <p className="text-[11px] text-muted">
+                    <p className="text-[0.6875rem] text-muted">
                       {collectFolderIds(folder.children).length} nested folders
                       · {folder.requestCount ?? 0} requests
                     </p>

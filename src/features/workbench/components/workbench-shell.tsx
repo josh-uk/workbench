@@ -27,6 +27,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
 } from "react";
 
@@ -78,10 +79,49 @@ interface WorkbenchShellProps {
   navigation: WorkbenchNavigation;
 }
 
+const THEME_STORAGE_KEY = "workbench.theme";
+const THEME_CHANGE_EVENT = "workbench-theme-change";
+type Theme = "dark" | "light";
+let memoryTheme: Theme = "dark";
+
+function savedTheme() {
+  try {
+    const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+    memoryTheme = value === "dark" || value === "light" ? value : "dark";
+  } catch {
+    // Fall back to the current in-memory selection.
+  }
+  return memoryTheme;
+}
+
+function saveTheme(theme: Theme) {
+  memoryTheme = theme;
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // Theme selection still works when browser storage is unavailable.
+  }
+  window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
+}
+
+function subscribeToTheme(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(THEME_CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(THEME_CHANGE_EVENT, onChange);
+  };
+}
+
 export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
   const router = useRouter();
   const searchRef = useRef<HTMLInputElement>(null);
-  const [dark, setDark] = useState(true);
+  const theme = useSyncExternalStore(
+    subscribeToTheme,
+    savedTheme,
+    () => "dark" as const,
+  );
+  const dark = theme === "dark";
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -109,6 +149,10 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
     text: string;
   } | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const toggleTheme = useCallback(() => {
+    saveTheme(dark ? "light" : "dark");
+  }, [dark]);
 
   const activeWorkspace =
     navigation.workspaces.find(
@@ -388,13 +432,13 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
       label: dark ? "Use light theme" : "Use dark theme",
       description: "Switch the Workbench colour theme",
       keywords: ["appearance", "dark", "light"],
-      run: () => setDark((value) => !value),
+      run: toggleTheme,
     },
   ];
 
   return (
     <div
-      className="flex h-dvh min-h-[620px] flex-col overflow-hidden bg-background text-foreground"
+      className="flex h-dvh min-h-[38.75rem] flex-col overflow-hidden bg-background text-foreground"
       data-theme={dark ? "dark" : "light"}
     >
       <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-surface px-3 sm:px-4">
@@ -445,7 +489,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
               ref={searchRef}
               value={query}
             />
-            <kbd className="absolute top-1.5 right-2 rounded border px-1.5 py-0.5 font-sans text-[10px] text-muted">
+            <kbd className="absolute top-1.5 right-2 rounded border px-1.5 py-0.5 font-sans text-[0.625rem] text-muted">
               ⌘K
             </kbd>
           </div>
@@ -464,7 +508,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
         </Button>
         <Button
           aria-label={dark ? "Use light theme" : "Use dark theme"}
-          onClick={() => setDark((value) => !value)}
+          onClick={toggleTheme}
           size="icon"
           variant="ghost"
         >
@@ -484,7 +528,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
           )}
         >
           <div className="flex h-11 items-center justify-between border-b px-3">
-            <span className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">
+            <span className="text-[0.6875rem] font-semibold tracking-[0.12em] text-muted uppercase">
               Navigator
             </span>
             <Button
@@ -561,7 +605,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
               <NavigationItem icon={History} label="Request history" />
             </div>
             <div className="mb-2 flex items-center justify-between px-2">
-              <span className="text-[10px] font-semibold tracking-[0.12em] text-muted uppercase">
+              <span className="text-[0.625rem] font-semibold tracking-[0.12em] text-muted uppercase">
                 Projects
               </span>
               <Button
@@ -678,7 +722,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
                         />
                       ) : (
                         <button
-                          className="ml-2 flex items-center gap-2 px-2 py-2 text-[11px] text-muted hover:text-foreground"
+                          className="ml-2 flex items-center gap-2 px-2 py-2 text-[0.6875rem] text-muted hover:text-foreground"
                           onClick={() =>
                             setEditor({
                               kind: "create-folder",
@@ -720,7 +764,7 @@ export function WorkbenchShell({ navigation }: WorkbenchShellProps) {
             ) : null}
             {archivedProjects.length ? (
               <div className="mt-5">
-                <p className="mb-1 px-2 text-[10px] font-semibold tracking-wider text-muted uppercase">
+                <p className="mb-1 px-2 text-[0.625rem] font-semibold tracking-wider text-muted uppercase">
                   Archived
                 </p>
                 {archivedProjects.map((project) => (

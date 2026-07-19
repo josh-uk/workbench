@@ -245,7 +245,7 @@ export function VariableManager({
             <ArrowLeft aria-hidden="true" className="size-4" />
           </Button>
           <div>
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">
+            <p className="text-[0.625rem] font-semibold tracking-[0.14em] text-muted uppercase">
               {project ? "Project configuration" : "Workspace configuration"}
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">
@@ -295,7 +295,7 @@ export function VariableManager({
                 <Layers3 aria-hidden="true" className="size-3.5" /> Base
                 variables
               </button>
-              <p className="mt-4 px-3 text-[10px] font-semibold tracking-wider text-muted uppercase">
+              <p className="mt-4 px-3 text-[0.625rem] font-semibold tracking-wider text-muted uppercase">
                 Environments
               </p>
               {environments.map((environment) => (
@@ -311,7 +311,7 @@ export function VariableManager({
                   type="button"
                 >
                   {environment.name}
-                  <span className="mt-0.5 block text-[10px] font-normal text-muted">
+                  <span className="mt-0.5 block text-[0.625rem] font-normal text-muted">
                     {environment.variables.length} variables
                   </span>
                 </button>

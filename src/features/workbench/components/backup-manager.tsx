@@ -258,7 +258,7 @@ export function BackupManager({
               </p>
             </div>
           </div>
-          <span className="rounded-md border px-2 py-1 font-mono text-[10px] text-muted">
+          <span className="rounded-md border px-2 py-1 font-mono text-[0.625rem] text-muted">
             FORMAT V1
           </span>
         </div>
@@ -596,7 +596,7 @@ export function BackupManager({
                     aria-hidden="true"
                     className="size-4 text-accent"
                   />
-                  <span className="min-w-0 flex-1 truncate font-mono text-[10px]">
+                  <span className="min-w-0 flex-1 truncate font-mono text-[0.625rem]">
                     {backup.name}
                   </span>
                   <span className="text-muted">
