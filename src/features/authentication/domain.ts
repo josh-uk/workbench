@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { maskSecret } from "@/core/secrets/redaction";
+import { keyVaultSecretReferenceSchema } from "@/features/authentication/azure/domain";
 import { entityIdSchema, entityNameSchema } from "@/features/workspaces/domain";
 
 export const authTypes = [
@@ -19,6 +20,32 @@ export const authTypeSchema = z.enum(authTypes);
 export type AuthType = (typeof authTypes)[number];
 
 const configurationValue = z.string().max(8_192).default("");
+
+export const authSecretFieldNames = [
+  "token",
+  "password",
+  "key",
+  "clientSecret",
+  "refreshToken",
+] as const;
+
+export type AuthSecretField = (typeof authSecretFieldNames)[number];
+
+export const authSecretReferencesSchema = z
+  .object({
+    token: keyVaultSecretReferenceSchema.nullable().default(null),
+    password: keyVaultSecretReferenceSchema.nullable().default(null),
+    key: keyVaultSecretReferenceSchema.nullable().default(null),
+    clientSecret: keyVaultSecretReferenceSchema.nullable().default(null),
+    refreshToken: keyVaultSecretReferenceSchema.nullable().default(null),
+  })
+  .default({
+    token: null,
+    password: null,
+    key: null,
+    clientSecret: null,
+    refreshToken: null,
+  });
 
 export const authProfileConfigurationSchema = z.object({
   token: configurationValue,
@@ -42,6 +69,7 @@ export const authProfileConfigurationSchema = z.object({
   injectionTarget: z.enum(["header", "query"]).default("header"),
   injectionName: configurationValue,
   failureBehavior: z.enum(["stop", "continue_without_auth"]).default("stop"),
+  secretReferences: authSecretReferencesSchema,
 });
 
 export type AuthProfileConfiguration = z.infer<
@@ -116,13 +144,39 @@ export interface AuthenticationTrace {
 }
 
 export const AUTH_SECRET_PLACEHOLDER = maskSecret("secret");
-export const authSecretFields = new Set<keyof AuthProfileConfiguration>([
-  "token",
-  "password",
-  "key",
-  "clientSecret",
-  "refreshToken",
-]);
+export const authSecretFields = new Set<keyof AuthProfileConfiguration>(
+  authSecretFieldNames,
+);
+
+export function secretFieldsForAuthType(type: AuthType): AuthSecretField[] {
+  switch (type) {
+    case "bearer":
+      return ["token"];
+    case "basic":
+      return ["password"];
+    case "api_key_header":
+    case "api_key_query":
+      return ["key"];
+    case "oauth2_client_credentials":
+      return ["clientSecret"];
+    case "oauth2_password":
+      return ["clientSecret", "password"];
+    case "oauth2_refresh_token":
+      return ["clientSecret", "refreshToken"];
+    default:
+      return [];
+  }
+}
+
+export function normaliseReferencedSecrets(
+  configuration: AuthProfileConfiguration,
+) {
+  const result = structuredClone(configuration);
+  for (const key of authSecretFieldNames) {
+    if (result.secretReferences[key]) result[key] = "";
+  }
+  return result;
+}
 
 export function defaultAuthConfiguration(): AuthProfileConfiguration {
   return authProfileConfigurationSchema.parse({
@@ -141,10 +195,11 @@ export function defaultAuthConfiguration(): AuthProfileConfiguration {
 }
 
 export function parseAuthConfiguration(value: unknown) {
-  return authProfileConfigurationSchema.parse({
+  const parsed = authProfileConfigurationSchema.parse({
     ...defaultAuthConfiguration(),
     ...(value && typeof value === "object" ? value : {}),
   });
+  return normaliseReferencedSecrets(parsed);
 }
 
 export class AuthDomainError extends Error {

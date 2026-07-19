@@ -20,6 +20,17 @@ npm run db:migrate
 npm run dev
 ```
 
+Local host development shows Azure as unavailable because the security-sensitive
+CLI integration uses the fixed container path `/usr/bin/az`. For the supported
+and production-equivalent Azure flow, run the containerised development stack:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+Do not point development at a personal host `~/.azure` directory. The Compose
+stack uses the isolated `workbench_azure_cli` volume.
+
 PostgreSQL integration tests that mutate hierarchy records require an isolated
 database URL. Never point `TEST_DATABASE_URL` at a database containing data you
 want to preserve.

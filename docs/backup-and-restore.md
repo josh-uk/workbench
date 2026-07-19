@@ -48,6 +48,14 @@ Losing an archive password makes its secrets unrecoverable.
 Plain-text mode requires a prominent confirmation and adds a manifest warning.
 Anyone who can read that archive can read its credentials.
 
+Azure Key Vault references are configuration rather than secret material, so
+their vault URL, secret name, and optional version remain in every archive mode.
+The resolved value and Azure CLI tokens are never added to an archive. Azure CLI
+state lives in the separate `workbench_azure_cli` Docker volume; logical backup
+and restore deliberately do not copy it. After restoring on another machine,
+use **Authentication profiles → Connect Azure** before executing a referenced
+profile.
+
 ## Automatic backups
 
 The production server checks the persisted schedule once a minute and creates a

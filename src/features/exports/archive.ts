@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { z } from "zod";
 
+import packageMetadata from "../../../package.json";
+
 import { authSecretFields } from "@/features/authentication/domain";
 import {
   archiveDataSchema,
@@ -350,7 +352,7 @@ export async function createExportArchive(input: {
     format: EXPORT_FORMAT,
     version: EXPORT_VERSION,
     schemaVersion: EXPORT_SCHEMA_VERSION,
-    appVersion: "0.1.0",
+    appVersion: packageMetadata.version,
     kind: input.kind,
     createdAt: (input.createdAt ?? new Date()).toISOString(),
     secretMode: input.secretMode,

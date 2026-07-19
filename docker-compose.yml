@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-workbench}:${POSTGRES_PASSWORD:-workbench}@database:5432/${POSTGRES_DB:-workbench}
+      AZURE_CONFIG_DIR: /home/nextjs/.azure
       WORKBENCH_BACKUP_DIR: /backups
       WORKBENCH_BACKUP_PASSWORD: ${WORKBENCH_BACKUP_PASSWORD:-}
     ports:
@@ -18,6 +19,7 @@ services:
         condition: service_healthy
     volumes:
       - workbench_backups:/backups
+      - workbench_azure_cli:/home/nextjs/.azure
     healthcheck:
       test:
         [
@@ -55,3 +57,5 @@ volumes:
     name: workbench_postgres_data
   workbench_backups:
     name: workbench_backups
+  workbench_azure_cli:
+    name: workbench_azure_cli

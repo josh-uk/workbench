@@ -239,6 +239,7 @@ export async function executeSavedRequest(input: {
       requestId: saved.id,
       executionId: input.executionId,
       rawBody: response.rawBody,
+      knownSecrets: plan.secretValues,
     });
     const assertionResults = evaluateAssertions(
       response,

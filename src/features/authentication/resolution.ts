@@ -15,7 +15,10 @@ import {
   AuthDomainError,
   type EffectiveAuthProfile,
   parseAuthConfiguration,
+  secretFieldsForAuthType,
 } from "@/features/authentication/domain";
+import { resolveKeyVaultSecret } from "@/features/authentication/azure/key-vault";
+import { AzureAuthenticationError } from "@/features/authentication/azure/domain";
 import {
   calculateTokenExpiry,
   injectAuthentication,
@@ -56,6 +59,21 @@ function interpolateConfiguration(
   return { ...profile, configuration: parseAuthConfiguration(configuration) };
 }
 
+async function resolveReferencedSecrets(
+  profile: EffectiveAuthProfile,
+  signal: AbortSignal,
+  fields = secretFieldsForAuthType(profile.type),
+): Promise<EffectiveAuthProfile> {
+  const configuration = structuredClone(profile.configuration);
+  for (const key of fields) {
+    const reference = configuration.secretReferences[key];
+    if (reference) {
+      configuration[key] = await resolveKeyVaultSecret(reference, { signal });
+    }
+  }
+  return { ...profile, configuration };
+}
+
 function formContent(values: Record<string, string>) {
   return Object.entries(values)
     .filter(([, value]) => Boolean(value))
@@ -90,11 +108,10 @@ async function requestOAuthToken(
   profile: EffectiveAuthProfile,
   sourcePlan: RequestPlan,
   signal: AbortSignal,
+  cached: Awaited<ReturnType<typeof getCachedToken>>,
 ) {
   const config = profile.configuration;
-  const cached = await getCachedToken(profile.id, sourcePlan.projectId);
-  const canRefresh = Boolean(cached?.refreshToken || config.refreshToken);
-  const grantType = canRefresh
+  const grantType = cached?.refreshToken
     ? "refresh_token"
     : profile.type === "oauth2_password"
       ? "password"
@@ -143,7 +160,7 @@ async function requestOAuthToken(
       settings: sourcePlan.settings,
       secretValues: [
         config.clientSecret,
-        config.password,
+        fields.password ?? "",
         fields.refresh_token ?? "",
       ].filter(Boolean),
     },
@@ -178,7 +195,7 @@ async function requestOAuthToken(
       false,
     ) ??
     cached?.refreshToken ??
-    config.refreshToken ??
+    (config.secretReferences.refreshToken ? null : config.refreshToken) ??
     null;
   const expiresIn = jsonPathValue(
     document,
@@ -211,7 +228,7 @@ export async function resolveAuthentication(input: {
   executeTokenRequest: (requestId: string) => Promise<void>;
 }): Promise<{ plan: RequestPlan; trace: AuthenticationTrace | null }> {
   if (!input.authProfileId) return { plan: input.plan, trace: null };
-  const profile = interpolateConfiguration(
+  let profile = interpolateConfiguration(
     await getEffectiveAuthProfile(input.authProfileId, input.projectId),
     input.variableDefinitions,
   );
@@ -223,6 +240,7 @@ export async function resolveAuthentication(input: {
       profile.type !== "oauth2_refresh_token" &&
       profile.type !== "request_derived"
     ) {
+      profile = await resolveReferencedSecrets(profile, input.signal);
       return injectAuthentication(input.plan, profile);
     }
 
@@ -267,7 +285,27 @@ export async function resolveAuthentication(input: {
         source: "cache",
       });
     }
-    const token = await requestOAuthToken(profile, input.plan, input.signal);
+    const usesCachedRefreshToken = Boolean(cached?.refreshToken);
+    const neededSecretFields = [
+      "clientSecret" as const,
+      ...(!usesCachedRefreshToken && profile.type === "oauth2_password"
+        ? (["password"] as const)
+        : []),
+      ...(!usesCachedRefreshToken && profile.type === "oauth2_refresh_token"
+        ? (["refreshToken"] as const)
+        : []),
+    ];
+    profile = await resolveReferencedSecrets(
+      profile,
+      input.signal,
+      neededSecretFields,
+    );
+    const token = await requestOAuthToken(
+      profile,
+      input.plan,
+      input.signal,
+      cached,
+    );
     return injectAuthentication(input.plan, profile, {
       value: token.accessToken,
       prefix: token.tokenType,
@@ -286,6 +324,9 @@ export async function resolveAuthentication(input: {
           credential: "",
         },
       };
+    }
+    if (error instanceof AzureAuthenticationError) {
+      throw new AuthDomainError(error.message, error.code);
     }
     throw error;
   }

@@ -24,7 +24,10 @@ results to HTTP responses. Database and secret-bearing modules import
 ## Runtime
 
 The production container starts by applying committed database migrations, then
-launches the Next.js standalone server as a non-root user. Compose waits for
+launches the Next.js standalone server as a non-root user. The standard image
+also contains a pinned Azure CLI. Its optional user-session cache is isolated in
+`workbench_azure_cli`; Workbench launches only fixed Azure CLI argument arrays
+and resolves Key Vault values through server-only modules. Compose waits for
 PostgreSQL health before starting the app. `/api/health` verifies both the server
 and database connection.
 
@@ -34,6 +37,7 @@ and database connection.
 - Saved-request editor and persistence
 - Variable resolver
 - Authentication and request-output engine
+- UI-managed Azure login and Azure Key Vault secret resolution
 - SSRF-aware HTTP execution engine
 - Modular collection importers
 - Workflow and assertion runner

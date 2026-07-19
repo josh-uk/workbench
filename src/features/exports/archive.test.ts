@@ -120,6 +120,52 @@ describe("versioned export archives", () => {
     );
   });
 
+  it("preserves Key Vault references without exporting resolved values", async () => {
+    const { result, workspaceId } = tables();
+    result.authProfiles.push({
+      id: randomUUID(),
+      workspaceId,
+      projectId: null,
+      tokenRequestId: null,
+      name: "Azure bearer",
+      type: "bearer",
+      configuration: {
+        token: "resolved-value-must-not-persist",
+        secretReferences: {
+          token: {
+            provider: "azure_key_vault",
+            vaultUrl: "https://workbench-secrets.vault.azure.net/",
+            secretName: "bearer-token",
+            version: "",
+          },
+        },
+      },
+    });
+    const { archive, manifest } = await createExportArchive({
+      tables: result,
+      kind: "workspace",
+      scope: { id: workspaceId, name: "Portable" },
+      secretMode: "exclude",
+    });
+
+    expect(manifest.appVersion).toBe("1.1.0");
+    expect(Buffer.from(archive).includes(Buffer.from("resolved-value"))).toBe(
+      false,
+    );
+    const parsed = await parseExportArchive(archive);
+    expect(parsed.data.tables.authProfiles[0]?.configuration).toEqual({
+      token: "",
+      secretReferences: {
+        token: {
+          provider: "azure_key_vault",
+          vaultUrl: "https://workbench-secrets.vault.azure.net/",
+          secretName: "bearer-token",
+          version: "",
+        },
+      },
+    });
+  });
+
   it("round-trips encrypted secrets only with the right password", async () => {
     const { result, workspaceId } = tables();
     const { archive } = await createExportArchive({

@@ -63,7 +63,11 @@ response body previews are bounded separately from the network response-size
 limit.
 
 Authentication profile configuration uses validated JSON so profile types can
-evolve without a sparse table for every credential field. `auth_token_cache`
+evolve without a sparse table for every credential field. Azure Key Vault
+references are a nested map in this JSON containing only the vault URL, secret
+name, and optional version; the resolved value is never persisted. The Azure
+CLI account and token cache live outside PostgreSQL in their dedicated Docker
+volume. `auth_token_cache`
 stores the latest access token, optional refresh token, token type, and expiry
 for a profile. Request output definitions are normalized children of saved
 requests; extracted runtime values reference both their definition and source

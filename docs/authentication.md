@@ -26,6 +26,91 @@ timeout, TLS, and response-size controls.
 
 ![Authentication profiles](images/phase-10-authentication.png)
 
+## Azure Key Vault credential sources
+
+The following secret-bearing fields can use either **Stored in Workbench** or
+**Azure Key Vault**:
+
+| Profile                    | Supported Key Vault fields      |
+| -------------------------- | ------------------------------- |
+| Bearer token               | Token                           |
+| Basic authentication       | Password                        |
+| API key in header or query | Key value                       |
+| OAuth client credentials   | Client secret                   |
+| OAuth password             | Client secret and password      |
+| OAuth refresh token        | Client secret and refresh token |
+
+Request-derived authentication does not need a Key Vault source because it
+receives its value from a saved request output.
+
+### Connect Azure
+
+Open **Authentication profiles**, find **Azure connection**, and select
+**Connect Azure**. An optional tenant ID or verified tenant domain narrows the
+sign-in. Workbench starts Azure CLI's device-code flow inside its container and
+shows the temporary Microsoft code and verification link in a modal. Complete
+Microsoft sign-in and MFA in the new browser tab; no terminal command or custom
+Entra application registration is required.
+
+The connected user must already have Key Vault data-plane access. The
+least-privilege built-in role is normally **Key Vault Secrets User** at the
+individual vault scope. Workbench does not grant roles, change IAM, enumerate
+vaults, or manage secrets.
+
+The first version supports one connected Azure user per Workbench installation.
+Select **Disconnect** before changing accounts. Azure CLI state is kept in the
+dedicated `workbench_azure_cli` Docker volume and survives ordinary container
+recreation. It is not stored in PostgreSQL or included in Workbench backups.
+
+### Configure a reference
+
+Choose **Azure Key Vault** from a supported field's Source menu, then enter:
+
+- the exact vault URL, such as `https://my-vault.vault.azure.net/`;
+- the secret name; and
+- optionally, the 32-character secret version.
+
+Select **Test reference** to verify access without displaying the value. If the
+version is blank, every execution resolves the latest version. This is the
+recommended setting for automatic secret rotation. If the latest version is
+disabled, the request fails rather than requiring permission to enumerate older
+versions. Supplying a version keeps the profile pinned until the reference is
+edited.
+
+Only public Azure Key Vault hostnames ending in `.vault.azure.net` are accepted
+in v1.1.0. The hostname may resolve through a private endpoint, but the
+Workbench container must have the required DNS and network route. Sovereign
+Azure clouds are not yet supported.
+
+Key Vault values are requested only when needed. In particular, a fresh cached
+OAuth access token is reused without contacting Key Vault; the referenced
+credential is resolved immediately before the next OAuth token request.
+
+### Troubleshooting and decommissioning
+
+- **Azure CLI unavailable:** use the supplied Docker Compose image; local
+  `npm run dev` does not bundle Azure CLI.
+- **Permission denied:** confirm the signed-in user has **Key Vault Secrets
+  User** (or equivalent `secrets/get` data-plane access) on that vault.
+- **Vault unreachable:** confirm the container can resolve and route to the
+  vault hostname, including private-endpoint DNS when used.
+- **Latest secret disabled or expired:** enable a usable latest version or pin
+  the exact active 32-character version in the profile.
+
+Disconnecting in the UI removes the active account but retains the empty Azure
+CLI configuration volume. To fully remove all persisted Azure session state,
+stop Workbench and delete only that dedicated volume:
+
+```sh
+docker compose down
+docker volume rm workbench_azure_cli
+```
+
+The second command is intentionally destructive for Azure CLI session state;
+it does not remove the PostgreSQL or backup volumes.
+
+![Azure Key Vault credential source](images/phase-12-azure-key-vault.png)
+
 ## Token lifecycle
 
 Workbench keeps one server-side cache entry per OAuth profile. It reuses a token
@@ -72,3 +157,10 @@ used by the server. Database access is therefore inside the trusted local
 boundary. Workbench does not claim operating-system keychain or at-rest database
 encryption; protect the host and database and do not expose them to untrusted
 networks.
+
+Azure changes the storage boundary for referenced profile fields: the secret
+value remains in Key Vault and exists in Workbench memory only for the active
+request or OAuth exchange. The browser receives the temporary device code and
+sanitized account/status metadata, never Azure access tokens, refresh tokens,
+CLI output, or resolved Key Vault values. Removing the `workbench_azure_cli`
+volume after stopping Compose fully removes the persisted Azure CLI session.

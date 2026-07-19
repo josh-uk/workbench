@@ -10,7 +10,10 @@ services:
       - .:/app
       - workbench_node_modules:/app/node_modules
       - workbench_next_cache:/app/.next
+      - workbench_azure_cli:/home/nextjs/.azure
 
 volumes:
   workbench_node_modules:
   workbench_next_cache:
+  workbench_azure_cli:
+    name: workbench_azure_cli

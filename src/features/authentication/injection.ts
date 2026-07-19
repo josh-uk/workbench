@@ -67,6 +67,7 @@ export function injectAuthentication(
   let value = "";
   let target: "header" | "query" | null = null;
   let name = "";
+  const rawSecrets: string[] = [];
   let source: AuthenticationTrace["source"] =
     credential?.source ?? "configured";
 
@@ -74,13 +75,15 @@ export function injectAuthentication(
     case "none":
       break;
     case "bearer":
-      value = `${config.tokenPrefix || "Bearer"} ${required(config.token, "Bearer token")}`;
+      rawSecrets.push(required(config.token, "Bearer token"));
+      value = `${config.tokenPrefix || "Bearer"} ${config.token}`;
       target = "header";
       name = config.headerName || "Authorization";
       break;
     case "basic": {
       const username = required(config.username, "Username");
       const password = required(config.password, "Password");
+      rawSecrets.push(password);
       value = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
       target = "header";
       name = config.headerName || "Authorization";
@@ -88,11 +91,13 @@ export function injectAuthentication(
     }
     case "api_key_header":
       value = required(config.key, "API key");
+      rawSecrets.push(config.key);
       target = "header";
       name = required(config.headerName, "Header name");
       break;
     case "api_key_query":
       value = required(config.key, "API key");
+      rawSecrets.push(config.key);
       target = "query";
       name = required(config.queryName, "Query parameter name");
       break;
@@ -119,9 +124,12 @@ export function injectAuthentication(
         ? replaceQuery(plan, name, value)
         : plan.queryParameters,
     secretValues: value
-      ? [...(plan.secretValues ?? []), value, credential?.value ?? ""].filter(
-          Boolean,
-        )
+      ? [
+          ...(plan.secretValues ?? []),
+          value,
+          credential?.value ?? "",
+          ...rawSecrets,
+        ].filter(Boolean)
       : plan.secretValues,
   };
 

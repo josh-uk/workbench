@@ -84,6 +84,7 @@ export async function persistRequestOutputs(input: {
   requestId: string;
   executionId: string;
   rawBody: string | null;
+  knownSecrets?: readonly string[];
 }) {
   const definitions = await getDatabase()
     .select()
@@ -92,7 +93,16 @@ export async function persistRequestOutputs(input: {
     .orderBy(asc(requestOutputDefinitions.position));
   if (!definitions.length) return [];
   const document = parseJsonResponse(input.rawBody ?? "");
-  const outputs = extractRequestOutputs(document, definitions);
+  const knownSecrets = (input.knownSecrets ?? []).filter(Boolean);
+  const outputs = extractRequestOutputs(document, definitions).filter(
+    (output) =>
+      !knownSecrets.some(
+        (secret) =>
+          output.value.includes(secret) ||
+          output.value.includes(encodeURIComponent(secret)),
+      ),
+  );
+  if (!outputs.length) return [];
   await getDatabase()
     .insert(runtimeOutputs)
     .values(

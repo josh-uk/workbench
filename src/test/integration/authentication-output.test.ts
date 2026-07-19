@@ -192,6 +192,12 @@ databaseDescribe("authentication and request outputs", () => {
           expiresInJsonPath: null,
           secret: false,
         },
+        {
+          name: "reflectedAuthorization",
+          jsonPath: "$.authorization",
+          expiresInJsonPath: null,
+          secret: true,
+        },
       ],
     });
 
@@ -203,6 +209,11 @@ databaseDescribe("authentication and request outputs", () => {
     expect(first.outputs).toEqual([
       expect.objectContaining({ name: "entityId", value: "42" }),
     ]);
+    expect(first.outputs).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "reflectedAuthorization" }),
+      ]),
+    );
     expect(JSON.stringify(first)).not.toContain("oauth-access-secret");
     expect(first.response?.bodyPreview).toContain("••••••••");
 

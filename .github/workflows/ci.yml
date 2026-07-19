@@ -118,6 +118,45 @@ jobs:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
+      - name: Build native container for runtime smoke tests
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: workbench:smoke
+          cache-from: type=gha
+      - name: Verify non-root Azure runtime
+        run: >-
+          docker run --rm --entrypoint sh workbench:smoke -c
+          'test "$(id -u)" = 1001 &&
+          test "$AZURE_CONFIG_DIR" = /home/nextjs/.azure &&
+          test "$(stat -c %a "$AZURE_CONFIG_DIR")" = 700 &&
+          test -w "$AZURE_CONFIG_DIR" &&
+          az version --output json --only-show-errors >/dev/null &&
+          node -e "require(\"sharp\")" &&
+          wget --version >/dev/null'
+      - name: Build arm64 container for runtime smoke tests
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/arm64
+          load: true
+          push: false
+          tags: workbench:smoke-arm64
+          cache-from: type=gha
+      - name: Verify non-root Azure runtime on arm64
+        run: >-
+          docker run --rm --platform linux/arm64 --entrypoint sh
+          workbench:smoke-arm64 -c
+          'test "$(id -u)" = 1001 &&
+          test "$AZURE_CONFIG_DIR" = /home/nextjs/.azure &&
+          test "$(stat -c %a "$AZURE_CONFIG_DIR")" = 700 &&
+          test -w "$AZURE_CONFIG_DIR" &&
+          az version --output json --only-show-errors >/dev/null &&
+          node -e "require(\"sharp\")" &&
+          wget --version >/dev/null'
       - uses: docker/build-push-action@v7
         with:
           context: .
