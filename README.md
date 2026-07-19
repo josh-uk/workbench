@@ -5,8 +5,34 @@ authentication, connected request flows, and durable project organisation. It
 runs as a self-hosted Next.js application with PostgreSQL, so collections,
 credentials, execution history, imports, and backups remain under your control.
 
+> [!IMPORTANT]
+> **Azure Key Vault is built directly into Workbench authentication in v1.1.**
+> Connect your personal Microsoft account through a guided, `az login`-style
+> flow in the UI, then use Key Vault secrets in authentication profiles. There
+> is no terminal login, no user-created Entra application registration, and no
+> resolved vault value stored in Workbench.
+
+## Use Azure Key Vault without leaving the app
+
+Workbench can source bearer tokens, Basic-auth passwords, API keys, OAuth client
+secrets, OAuth passwords, and OAuth refresh tokens from Azure Key Vault. Pick
+**Azure Key Vault** on the credential field, enter the vault URL and secret name,
+and optionally pin an exact version. Leaving the version blank follows the
+latest secret so normal rotation does not require editing the profile.
+
+The Microsoft device-code flow, connection status, reference test, and
+disconnect controls all live on the Authentication screen. Azure CLI is already
+included in the standard amd64 and arm64 Docker images, and its isolated session
+survives normal Compose container recreation.
+
+![Azure Key Vault authentication in Workbench](docs/images/phase-12-azure-key-vault.png)
+
+[Read the Azure Key Vault setup and security details](docs/authentication.md#connect-azure).
+
 It is designed for developers who need more than isolated HTTP requests:
 
+- resolve authentication secrets from Azure Key Vault only when a request needs
+  them;
 - obtain a token from one saved request and inject it into another;
 - publish response values for later requests and workflows;
 - explain exactly which environment or variable supplied a value;
@@ -66,8 +92,6 @@ Each reference identifies a vault URL, secret name, and optional exact version.
 Omitting the version follows the latest secret, enabling rotation without
 editing the profile. Values are resolved only on the server immediately before
 use and never enter Workbench records, history, exports, or backups.
-
-![Azure Key Vault credential source](docs/images/phase-12-azure-key-vault.png)
 
 A request-derived profile connects normal saved requests into an authentication
 flow:
