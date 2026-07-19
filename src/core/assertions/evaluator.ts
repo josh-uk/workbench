@@ -2,6 +2,7 @@ import Ajv from "ajv";
 
 import {
   evaluateJsonPath,
+  JsonPathError,
   outputValueToString,
 } from "@/core/request-outputs/json-path";
 
@@ -238,9 +239,9 @@ export function evaluateAssertions(
         return result(
           assertion,
           false,
-          error instanceof Error
+          error instanceof JsonPathError
             ? error.message
-            : "Assertion evaluation failed.",
+            : "Assertion evaluation failed because the response or assertion configuration was invalid.",
         );
       }
     });

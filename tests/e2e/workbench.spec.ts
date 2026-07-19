@@ -270,6 +270,18 @@ test.describe.serial("workspace and project management", () => {
   test("extracts and reuses a saved OAuth token without exposing it", async ({
     page,
   }) => {
+    await page.route("**/api/configuration/azure", async (route) => {
+      if (
+        new URL(route.request().url()).pathname !== "/api/configuration/azure"
+      ) {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        contentType: "application/json",
+        json: { status: "disconnected", cliAvailable: true },
+      });
+    });
     await page.goto("/");
     await page.getByRole("button", { name: "Core API", exact: true }).click();
     await page
@@ -305,13 +317,28 @@ test.describe.serial("workspace and project management", () => {
       .getByLabel("Token URL")
       .fill("https://identity.example.test/oauth/token");
     await page.getByLabel("Client ID").fill("workbench-demo");
-    await page.getByLabel("Client secret").fill("not-a-real-secret");
+    await page
+      .getByLabel("Client secret", { exact: true })
+      .fill("not-a-real-secret");
     await page.getByLabel("Scope", { exact: true }).fill("facts:read");
     await page.getByLabel("Audience").fill("facts-api");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Authentication profile saved.")).toBeVisible();
     await expectNoAccessibilityViolations(page);
     await captureDocumentation(page, "phase-10-oauth-client-credentials");
+
+    if (documentationMode) {
+      await page.getByRole("button", { name: "New profile" }).click();
+      await page.getByLabel("Name").fill("Key Vault bearer token");
+      await page.getByLabel("Type").selectOption("bearer");
+      await page.getByLabel("Source").selectOption("azure_key_vault");
+      await page
+        .getByLabel("Vault URL")
+        .fill("https://workbench-demo.vault.azure.net/");
+      await page.getByLabel("Secret name").fill("commerce-api-token");
+      await expectNoAccessibilityViolations(page);
+      await captureDocumentation(page, "phase-12-azure-key-vault");
+    }
 
     await page.getByRole("button", { name: "New profile" }).click();
     await page.getByLabel("Name").fill(authProfileName);

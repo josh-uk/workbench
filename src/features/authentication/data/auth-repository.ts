@@ -20,6 +20,7 @@ import {
   AuthDomainError,
   authSecretFields,
   type EffectiveAuthProfile,
+  normaliseReferencedSecrets,
   parseAuthConfiguration,
 } from "../domain";
 
@@ -77,6 +78,13 @@ function mergeConfiguration(
   >) {
     if (authSecretFields.has(key) && value === AUTH_SECRET_PLACEHOLDER)
       continue;
+    if (key === "secretReferences" && value && typeof value === "object") {
+      result.secretReferences = {
+        ...result.secretReferences,
+        ...value,
+      };
+      continue;
+    }
     Object.assign(result, { [key]: value });
   }
   return parseAuthConfiguration(result);
@@ -309,7 +317,7 @@ export async function saveAuthProfile(input: {
         tokenRequestId: input.tokenRequestId,
         name: input.name,
         type: input.type,
-        configuration: input.configuration,
+        configuration: normaliseReferencedSecrets(input.configuration),
       })
       .returning({ id: authProfiles.id });
     if (!profile)

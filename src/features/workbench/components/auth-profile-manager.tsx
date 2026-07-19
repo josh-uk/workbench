@@ -1,9 +1,17 @@
 "use client";
 
-import { ArrowLeft, LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  LoaderCircle,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import type { AzureConnectionState } from "@/features/authentication/azure/domain";
 import {
   deleteAuthProfileAction,
   saveAuthOverrideAction,
@@ -13,11 +21,14 @@ import {
   type AuthConfiguration,
   type AuthProfileConfiguration,
   type AuthProfileDetail,
+  type AuthSecretField,
   type AuthType,
   authTypes,
   defaultAuthConfiguration,
 } from "@/features/authentication/domain";
 import { cn } from "@/lib/utils";
+
+import { AzureConnection } from "./azure-connection";
 
 type Draft = Omit<AuthProfileDetail, "inherited" | "overridden"> & {
   inherited: boolean;
@@ -90,6 +101,186 @@ function TextField({
   );
 }
 
+function SecretField({
+  configuration,
+  label,
+  name,
+  onChange,
+}: {
+  configuration: AuthProfileConfiguration;
+  label: string;
+  name: AuthSecretField;
+  onChange: (configuration: AuthProfileConfiguration) => void;
+}) {
+  const reference = configuration.secretReferences[name];
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+
+  const updateReference = (changes: Partial<NonNullable<typeof reference>>) => {
+    if (!reference) return;
+    onChange({
+      ...configuration,
+      secretReferences: {
+        ...configuration.secretReferences,
+        [name]: { ...reference, ...changes },
+      },
+    });
+    setTestResult(null);
+  };
+
+  const testReference = async () => {
+    if (!reference) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const response = await fetch("/api/configuration/azure/key-vault", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reference }),
+      });
+      const payload = (await response.json()) as
+        { ok: true } | { error: string };
+      if (!response.ok || "error" in payload) {
+        throw new Error(
+          "error" in payload ? payload.error : "Reference test failed.",
+        );
+      }
+      setTestResult({ ok: true, message: "Secret reference is accessible." });
+    } catch (error) {
+      setTestResult({
+        ok: false,
+        message:
+          error instanceof Error ? error.message : "Reference test failed.",
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2 rounded-lg border bg-surface-subtle p-3 sm:col-span-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium">{label}</p>
+        <label className="flex items-center gap-2 text-[11px] text-muted">
+          Source
+          <select
+            aria-label={`${label} source`}
+            className="h-8 rounded-md border bg-surface px-2 text-xs text-foreground"
+            onChange={(event) => {
+              const useAzure = event.target.value === "azure_key_vault";
+              onChange({
+                ...configuration,
+                [name]: useAzure ? "" : configuration[name],
+                secretReferences: {
+                  ...configuration.secretReferences,
+                  [name]: useAzure
+                    ? {
+                        provider: "azure_key_vault",
+                        vaultUrl: "",
+                        secretName: "",
+                        version: "",
+                      }
+                    : null,
+                },
+              });
+              setTestResult(null);
+            }}
+            value={reference ? "azure_key_vault" : "stored"}
+          >
+            <option value="stored">Stored in Workbench</option>
+            <option value="azure_key_vault">Azure Key Vault</option>
+          </select>
+        </label>
+      </div>
+      {reference ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-1 text-[11px] font-medium sm:col-span-2">
+            Vault URL
+            <input
+              aria-label={`${label} vault URL`}
+              className="h-9 w-full rounded-md border bg-surface px-2.5 font-mono text-xs"
+              onChange={(event) =>
+                updateReference({ vaultUrl: event.target.value })
+              }
+              placeholder="https://my-vault.vault.azure.net/"
+              type="url"
+              value={reference.vaultUrl}
+            />
+          </label>
+          <label className="space-y-1 text-[11px] font-medium">
+            Secret name
+            <input
+              aria-label={`${label} secret name`}
+              className="h-9 w-full rounded-md border bg-surface px-2.5 font-mono text-xs"
+              onChange={(event) =>
+                updateReference({ secretName: event.target.value })
+              }
+              placeholder="api-client-secret"
+              value={reference.secretName}
+            />
+          </label>
+          <label className="space-y-1 text-[11px] font-medium">
+            Version <span className="font-normal text-muted">Optional</span>
+            <input
+              aria-label={`${label} secret version`}
+              className="h-9 w-full rounded-md border bg-surface px-2.5 font-mono text-xs"
+              onChange={(event) =>
+                updateReference({ version: event.target.value })
+              }
+              placeholder="Latest version"
+              value={reference.version}
+            />
+          </label>
+          <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+            <Button
+              aria-label={`Test ${label} Key Vault reference`}
+              disabled={testing || !reference.vaultUrl || !reference.secretName}
+              onClick={() => void testReference()}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              {testing ? (
+                <LoaderCircle className="size-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="size-3.5" />
+              )}{" "}
+              Test reference
+            </Button>
+            <p className="text-[11px] text-muted">
+              Without a version, requests use the latest secret.
+            </p>
+          </div>
+          {testResult ? (
+            <p
+              className={cn(
+                "text-[11px] sm:col-span-2",
+                testResult.ok ? "text-success" : "text-red-500",
+              )}
+              role="status"
+            >
+              {testResult.message}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <input
+          aria-label={label}
+          className="h-9 w-full rounded-md border bg-surface px-2.5 font-mono text-xs"
+          onChange={(event) =>
+            onChange({ ...configuration, [name]: event.target.value })
+          }
+          type="password"
+          value={configuration[name]}
+        />
+      )}
+    </div>
+  );
+}
+
 export function AuthProfileManager({
   onClose,
   project,
@@ -104,6 +295,8 @@ export function AuthProfileManager({
   );
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
+  const [azureConnection, setAzureConnection] =
+    useState<AzureConnectionState | null>(null);
   const [notice, setNotice] = useState<{
     tone: "success" | "error";
     text: string;
@@ -247,6 +440,8 @@ export function AuthProfileManager({
           </div>
         ) : null}
 
+        <AzureConnection onStateChange={setAzureConnection} />
+
         {!configuration || !draft || !config ? (
           <div className="grid min-h-64 place-items-center">
             <LoaderCircle
@@ -277,6 +472,11 @@ export function AuthProfileManager({
                       : profile.projectId
                         ? "project"
                         : "workspace"}
+                    {Object.values(profile.configuration.secretReferences).some(
+                      Boolean,
+                    ) && azureConnection?.status !== "connected"
+                      ? " · Azure reconnect required"
+                      : ""}
                   </span>
                 </button>
               ))}
@@ -352,12 +552,11 @@ export function AuthProfileManager({
 
                 {draft.type === "bearer" ? (
                   <>
-                    <TextField
+                    <SecretField
                       configuration={config}
                       label="Bearer token"
                       name="token"
                       onChange={updateConfiguration}
-                      secret
                     />
                     <TextField
                       configuration={config}
@@ -381,12 +580,11 @@ export function AuthProfileManager({
                       name="username"
                       onChange={updateConfiguration}
                     />
-                    <TextField
+                    <SecretField
                       configuration={config}
                       label="Password"
                       name="password"
                       onChange={updateConfiguration}
-                      secret
                     />
                     <TextField
                       configuration={config}
@@ -399,12 +597,11 @@ export function AuthProfileManager({
                 {draft.type === "api_key_header" ||
                 draft.type === "api_key_query" ? (
                   <>
-                    <TextField
+                    <SecretField
                       configuration={config}
                       label="API key"
                       name="key"
                       onChange={updateConfiguration}
-                      secret
                     />
                     <TextField
                       configuration={config}
@@ -437,12 +634,11 @@ export function AuthProfileManager({
                       name="clientId"
                       onChange={updateConfiguration}
                     />
-                    <TextField
+                    <SecretField
                       configuration={config}
                       label="Client secret"
                       name="clientSecret"
                       onChange={updateConfiguration}
-                      secret
                     />
                     <TextField
                       configuration={config}
@@ -464,22 +660,20 @@ export function AuthProfileManager({
                           name="username"
                           onChange={updateConfiguration}
                         />
-                        <TextField
+                        <SecretField
                           configuration={config}
                           label="Password"
                           name="password"
                           onChange={updateConfiguration}
-                          secret
                         />
                       </>
                     ) : null}
                     {draft.type === "oauth2_refresh_token" ? (
-                      <TextField
+                      <SecretField
                         configuration={config}
                         label="Refresh token"
                         name="refreshToken"
                         onChange={updateConfiguration}
-                        secret
                       />
                     ) : null}
                     <TextField

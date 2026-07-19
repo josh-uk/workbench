@@ -3,7 +3,36 @@
 All notable changes to Workbench are documented here. Versions follow semantic
 versioning.
 
-## 0.1.0 - 2026-07-18
+## 1.1.0 - 2026-07-19
+
+### Added
+
+- UI-managed Microsoft device-code sign-in for a personal Azure account, with
+  no user-created Entra application registration or terminal step.
+- Azure Key Vault as an optional source for bearer tokens, Basic passwords, API
+  keys, OAuth client secrets, OAuth passwords, and OAuth refresh tokens.
+- Exact or latest Key Vault secret references, sanitized connection and
+  failure states, reference testing, and server-side just-in-time resolution.
+- Persistent, isolated Azure CLI authentication state in the standard Docker
+  Compose installation.
+
+### Changed
+
+- The standard production and development containers now include Azure CLI
+  2.88.0 and use Debian Bookworm while remaining non-root and multi-platform.
+- Export manifests now report the package version instead of a stale hard-coded
+  value.
+
+### Security
+
+- Key Vault tokens and resolved values remain outside browser responses,
+  PostgreSQL, execution history, exports, backups, and application logs.
+- Vault references accept only HTTPS Azure Key Vault hosts, preventing access
+  tokens from being forwarded to arbitrary servers.
+- Azure CLI processes use fixed argument arrays without a shell, bounded output,
+  one active login, cancellation, expiry, and sanitized errors.
+
+## 1.0.0 - 2026-07-18
 
 Initial public release.
 

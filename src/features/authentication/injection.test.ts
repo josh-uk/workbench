@@ -47,23 +47,29 @@ function profile(
 
 describe("authentication injection", () => {
   it("injects bearer, basic, and API key credentials as secrets", () => {
-    expect(
-      injectAuthentication(plan, profile("bearer", { token: "token-1" })).plan
-        .headers,
-    ).toEqual([
+    const bearer = injectAuthentication(
+      plan,
+      profile("bearer", { token: "token-1" }),
+    ).plan;
+    expect(bearer.headers).toEqual([
       expect.objectContaining({
         name: "Authorization",
         value: "Bearer token-1",
         secret: true,
       }),
     ]);
+    expect(bearer.secretValues).toEqual(
+      expect.arrayContaining(["Bearer token-1", "token-1"]),
+    );
 
-    expect(
-      injectAuthentication(
-        plan,
-        profile("basic", { username: "worker", password: "secret" }),
-      ).plan.headers[0]?.value,
-    ).toBe(`Basic ${Buffer.from("worker:secret").toString("base64")}`);
+    const basic = injectAuthentication(
+      plan,
+      profile("basic", { username: "worker", password: "secret" }),
+    ).plan;
+    expect(basic.headers[0]?.value).toBe(
+      `Basic ${Buffer.from("worker:secret").toString("base64")}`,
+    );
+    expect(basic.secretValues).toContain("secret");
 
     expect(
       injectAuthentication(

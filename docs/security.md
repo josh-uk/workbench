@@ -78,6 +78,22 @@ metadata before persistence. Authentication traces contain profile identity,
 credential source, and injection target, but never the credential. Editing a
 profile or override invalidates its direct OAuth cache.
 
+Azure Key Vault references keep resolved values outside PostgreSQL, archives,
+backups, execution history, and browser responses. The standard container runs a
+pinned Azure CLI as the same non-root application user and stores its token
+cache only in the mode-`0700` `workbench_azure_cli` volume. UI login launches a
+fixed argument array with `shell: false`, permits one process at a time, bounds
+captured output and lifetime, and maps raw CLI failures to sanitized messages.
+The temporary device code is returned only during its active sign-in and is not
+logged or persisted.
+
+Key Vault access tokens are requested server-side for
+`https://vault.azure.net`. To prevent bearer-token disclosure and SSRF, vault
+URLs must use HTTPS, contain no credentials, custom port, path, query, or
+fragment, and end in the exact public Azure suffix `.vault.azure.net`. Redirects
+are rejected. The REST response is schema-validated and the resolved value is
+added to the same in-memory secret-redaction set as a locally stored credential.
+
 Assertion evaluation runs on the server after a bounded response has completed.
 Definitions and counts are schema-bounded. Regular expressions reject
 backreferences, lookarounds, nested quantifiers, repeated unbounded wildcards,
@@ -102,5 +118,6 @@ only names matching the generated backup pattern.
 
 CI fails for high-severity npm audit findings. Dependabot monitors npm, Docker,
 and GitHub Actions dependencies. Production containers run as a non-root user
-and contain only the standalone application, runtime dependencies, migrations,
-and public assets.
+and contain the standalone application, runtime dependencies, migrations,
+Azure CLI, and public assets. Azure CLI is pinned and the image continues to be
+built and tested for `linux/amd64` and `linux/arm64`.

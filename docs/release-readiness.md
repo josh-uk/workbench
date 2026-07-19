@@ -1,7 +1,7 @@
 # Release readiness
 
-This review records the evidence used for the initial `v0.1.0` release. It is a
-living checklist rather than a claim that a local-only application has no risk.
+This living review records the evidence required for stable Workbench releases;
+it is not a claim that a local-only application has no risk.
 
 ## Accessibility and keyboard review
 
@@ -49,6 +49,9 @@ measured collections make it necessary.
 - Import parsers validate untrusted source documents before transactional writes.
 - The production container runs as a non-root user. Backup files use owner-only
   permissions, and GHCR releases include an SBOM and build provenance.
+- Azure login uses one bounded, cancellable, non-shell CLI process. Key Vault
+  access tokens and resolved values remain server-only, vault hosts are strictly
+  allow-listed, and CLI state uses a dedicated owner-only Docker volume.
 - CI runs the npm high-severity audit. The release dependency graph has no known
   vulnerabilities at that threshold.
 

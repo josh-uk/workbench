@@ -263,4 +263,22 @@ describe("response assertion evaluation", () => {
     expect(unsafeRegexReason("a".repeat(257))).toContain("256");
     expect(unsafeRegexReason("^abc-[0-9]+$")).toBeNull();
   });
+
+  it("does not include invalid response content in assertion errors", () => {
+    const secret = "azure-kv-supersecret";
+    const results = evaluateAssertions(
+      { ...response, rawBody: secret, bodyPreview: "••••••••" },
+      owned([
+        {
+          name: "Secret must be JSON",
+          enabled: true,
+          type: "jsonpath_exists",
+          configuration: { path: "$.value" },
+        },
+      ]),
+    );
+
+    expect(results[0]).toMatchObject({ passed: false });
+    expect(results[0]?.message).not.toContain(secret);
+  });
 });
