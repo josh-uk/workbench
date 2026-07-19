@@ -92,13 +92,13 @@ function RunReport({ report }: { report: WorkflowRunReport }) {
         {report.steps.map((step) => (
           <article className="rounded-lg border bg-surface p-3" key={step.id}>
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="grid size-5 place-items-center rounded-full border font-mono text-[10px] text-muted">
+              <span className="grid size-5 place-items-center rounded-full border font-mono text-[0.625rem] text-muted">
                 {step.position + 1}
               </span>
               <span className="font-semibold">{step.name}</span>
               <span
                 className={cn(
-                  "font-mono text-[10px] font-semibold uppercase",
+                  "font-mono text-[0.625rem] font-semibold uppercase",
                   statusClass(step.status),
                 )}
               >
@@ -110,7 +110,7 @@ function RunReport({ report }: { report: WorkflowRunReport }) {
                   {step.execution.response.durationMs} ms
                 </span>
               ) : null}
-              <span className="ml-auto text-[10px] text-muted">
+              <span className="ml-auto text-[0.625rem] text-muted">
                 On failure: {step.failureMode}
               </span>
             </div>
@@ -131,7 +131,7 @@ function RunReport({ report }: { report: WorkflowRunReport }) {
               </ul>
             ) : null}
             {step.outputNames.length ? (
-              <p className="mt-2 text-[11px] text-muted">
+              <p className="mt-2 text-[0.6875rem] text-muted">
                 Published for later steps: {step.outputNames.join(", ")}
               </p>
             ) : null}
@@ -391,7 +391,7 @@ export function WorkflowManager({
                     type="button"
                   >
                     <span className="font-medium">{workflow.name}</span>
-                    <span className="mt-1 block text-[11px] text-muted">
+                    <span className="mt-1 block text-[0.6875rem] text-muted">
                       {workflow.stepCount} step(s)
                     </span>
                   </button>
@@ -399,7 +399,7 @@ export function WorkflowManager({
                     {workflow.lastRun ? (
                       <button
                         className={cn(
-                          "font-mono text-[10px] uppercase",
+                          "font-mono text-[0.625rem] uppercase",
                           statusClass(workflow.lastRun.status),
                         )}
                         onClick={() => void showLastRun(workflow.lastRun!.id)}
@@ -408,7 +408,9 @@ export function WorkflowManager({
                         Last run: {workflow.lastRun.status}
                       </button>
                     ) : (
-                      <span className="text-[10px] text-muted">Never run</span>
+                      <span className="text-[0.625rem] text-muted">
+                        Never run
+                      </span>
                     )}
                     <Button
                       aria-label={`Delete ${workflow.name}`}
@@ -465,7 +467,7 @@ export function WorkflowManager({
                       key={step.id ?? index}
                     >
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="grid size-6 place-items-center rounded-full border font-mono text-[10px]">
+                        <span className="grid size-6 place-items-center rounded-full border font-mono text-[0.625rem]">
                           {index + 1}
                         </span>
                         <input

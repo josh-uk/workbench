@@ -30,12 +30,18 @@ export const authSecretFieldNames = [
 ] as const;
 
 export type AuthSecretField = (typeof authSecretFieldNames)[number];
+export const authReferenceFieldNames = [
+  ...authSecretFieldNames,
+  "clientId",
+] as const;
+export type AuthReferenceField = (typeof authReferenceFieldNames)[number];
 
 export const authSecretReferencesSchema = z
   .object({
     token: keyVaultSecretReferenceSchema.nullable().default(null),
     password: keyVaultSecretReferenceSchema.nullable().default(null),
     key: keyVaultSecretReferenceSchema.nullable().default(null),
+    clientId: keyVaultSecretReferenceSchema.nullable().default(null),
     clientSecret: keyVaultSecretReferenceSchema.nullable().default(null),
     refreshToken: keyVaultSecretReferenceSchema.nullable().default(null),
   })
@@ -43,6 +49,7 @@ export const authSecretReferencesSchema = z
     token: null,
     password: null,
     key: null,
+    clientId: null,
     clientSecret: null,
     refreshToken: null,
   });
@@ -148,7 +155,9 @@ export const authSecretFields = new Set<keyof AuthProfileConfiguration>(
   authSecretFieldNames,
 );
 
-export function secretFieldsForAuthType(type: AuthType): AuthSecretField[] {
+export function referencedFieldsForAuthType(
+  type: AuthType,
+): AuthReferenceField[] {
   switch (type) {
     case "bearer":
       return ["token"];
@@ -158,11 +167,11 @@ export function secretFieldsForAuthType(type: AuthType): AuthSecretField[] {
     case "api_key_query":
       return ["key"];
     case "oauth2_client_credentials":
-      return ["clientSecret"];
+      return ["clientId", "clientSecret"];
     case "oauth2_password":
-      return ["clientSecret", "password"];
+      return ["clientId", "clientSecret", "password"];
     case "oauth2_refresh_token":
-      return ["clientSecret", "refreshToken"];
+      return ["clientId", "clientSecret", "refreshToken"];
     default:
       return [];
   }
@@ -172,7 +181,7 @@ export function normaliseReferencedSecrets(
   configuration: AuthProfileConfiguration,
 ) {
   const result = structuredClone(configuration);
-  for (const key of authSecretFieldNames) {
+  for (const key of authReferenceFieldNames) {
     if (result.secretReferences[key]) result[key] = "";
   }
   return result;

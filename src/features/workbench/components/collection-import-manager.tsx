@@ -116,14 +116,14 @@ function RequestPreview({
                     }
                     type="checkbox"
                   />
-                  <span className="w-14 shrink-0 font-mono text-[10px] font-bold text-accent">
+                  <span className="w-14 shrink-0 font-mono text-[0.625rem] font-bold text-accent">
                     {request.method}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs font-medium">
                       {request.name}
                     </span>
-                    <span className="mt-0.5 block truncate font-mono text-[10px] text-muted">
+                    <span className="mt-0.5 block truncate font-mono text-[0.625rem] text-muted">
                       {request.url}
                     </span>
                   </span>
@@ -261,7 +261,7 @@ export function CollectionImportManager({
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-start gap-3">
           <div>
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">
+            <p className="text-[0.625rem] font-semibold tracking-[0.14em] text-muted uppercase">
               {project.name} · Portable imports
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">
@@ -326,18 +326,20 @@ export function CollectionImportManager({
                         <p className="font-mono text-lg font-semibold">
                           {item.requestCount}
                         </p>
-                        <p className="text-[10px] text-muted">Imported items</p>
+                        <p className="text-[0.625rem] text-muted">
+                          Imported items
+                        </p>
                       </div>
                       <div className="rounded-lg bg-surface-subtle px-2 py-3">
                         <p className="font-mono text-lg font-semibold">
                           {item.linkedRequestCount}
                         </p>
-                        <p className="text-[10px] text-muted">
+                        <p className="text-[0.625rem] text-muted">
                           Linked requests
                         </p>
                       </div>
                     </div>
-                    <p className="mt-4 text-[10px] text-muted">
+                    <p className="mt-4 text-[0.625rem] text-muted">
                       Imported {new Date(item.importedAt).toLocaleString()}
                     </p>
                   </article>
@@ -481,7 +483,7 @@ export function CollectionImportManager({
             <section className="rounded-xl border bg-surface p-5 shadow-sm">
               <div className="flex flex-wrap items-start gap-4">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-semibold tracking-wider text-accent uppercase">
+                  <p className="text-[0.625rem] font-semibold tracking-wider text-accent uppercase">
                     Validated {formatLabels[preview.format]}
                     {preview.formatVersion ? ` ${preview.formatVersion}` : ""}
                   </p>
@@ -493,7 +495,7 @@ export function CollectionImportManager({
                     {preview.projectVariables.length} variables
                   </p>
                 </div>
-                <div className="flex gap-2 text-[10px] text-muted">
+                <div className="flex gap-2 text-[0.625rem] text-muted">
                   <span className="rounded-full border px-3 py-1.5">
                     <KeyRound className="mr-1 inline size-3" />
                     {preview.authProfiles.length} auth

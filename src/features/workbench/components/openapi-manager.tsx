@@ -227,7 +227,7 @@ function OperationPreview({
                 />
                 {tag}
               </label>
-              <label className="ml-auto flex items-center gap-2 text-[11px] text-muted">
+              <label className="ml-auto flex items-center gap-2 text-[0.6875rem] text-muted">
                 Folder
                 <input
                   aria-label={`Folder for ${tag}`}
@@ -263,19 +263,19 @@ function OperationPreview({
                     }
                     type="checkbox"
                   />
-                  <span className="w-14 shrink-0 font-mono text-[10px] font-bold text-accent">
+                  <span className="w-14 shrink-0 font-mono text-[0.625rem] font-bold text-accent">
                     {operation.method}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-mono text-xs">
                       {operation.path}
                     </span>
-                    <span className="mt-0.5 block text-[11px] text-muted">
+                    <span className="mt-0.5 block text-[0.6875rem] text-muted">
                       {operation.name}
                       {operation.deprecated ? " · deprecated" : ""}
                     </span>
                     {operation.conflict ? (
-                      <span className="mt-1 block text-[10px] text-warning">
+                      <span className="mt-1 block text-[0.625rem] text-warning">
                         {operation.conflict}
                       </span>
                     ) : null}
@@ -506,7 +506,7 @@ export function OpenApiManager({
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-start gap-3">
           <div>
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">
+            <p className="text-[0.625rem] font-semibold tracking-[0.14em] text-muted uppercase">
               {project.name} · OpenAPI
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight">
@@ -601,11 +601,11 @@ export function OpenApiManager({
                           <p className="font-mono text-lg font-semibold">
                             {value}
                           </p>
-                          <p className="text-[10px] text-muted">{label}</p>
+                          <p className="text-[0.625rem] text-muted">{label}</p>
                         </div>
                       ))}
                     </div>
-                    <p className="mt-4 truncate font-mono text-[10px] text-muted">
+                    <p className="mt-4 truncate font-mono text-[0.625rem] text-muted">
                       {definition.sourceUrl ??
                         `${definition.sourceType} source`}{" "}
                       · updated{" "}
@@ -659,7 +659,7 @@ export function OpenApiManager({
                 <section className="rounded-xl border bg-surface p-5 shadow-sm">
                   <div className="flex flex-wrap items-start gap-4">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-semibold tracking-wider text-accent uppercase">
+                      <p className="text-[0.625rem] font-semibold tracking-wider text-accent uppercase">
                         Validated OpenAPI {preview.openapiVersion}
                       </p>
                       <h2 className="mt-1 text-xl font-semibold">
@@ -678,11 +678,11 @@ export function OpenApiManager({
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <span className="flex items-center gap-1.5 rounded-full border bg-surface-subtle px-3 py-1.5 text-[10px] text-muted">
+                      <span className="flex items-center gap-1.5 rounded-full border bg-surface-subtle px-3 py-1.5 text-[0.625rem] text-muted">
                         <Server className="size-3" /> {preview.servers.length}{" "}
                         servers
                       </span>
-                      <span className="flex items-center gap-1.5 rounded-full border bg-surface-subtle px-3 py-1.5 text-[10px] text-muted">
+                      <span className="flex items-center gap-1.5 rounded-full border bg-surface-subtle px-3 py-1.5 text-[0.625rem] text-muted">
                         <KeyRound className="size-3" />{" "}
                         {
                           preview.securityProposals.filter(
@@ -729,7 +729,7 @@ export function OpenApiManager({
                           {preview.servers.length ? (
                             preview.servers.map((server) => (
                               <p
-                                className="truncate font-mono text-[10px] text-muted"
+                                className="truncate font-mono text-[0.625rem] text-muted"
                                 key={server.url}
                                 title={server.resolvedUrl}
                               >
@@ -737,7 +737,7 @@ export function OpenApiManager({
                               </p>
                             ))
                           ) : (
-                            <p className="text-[10px] text-muted">
+                            <p className="text-[0.625rem] text-muted">
                               Placeholder server used
                             </p>
                           )}
@@ -752,7 +752,7 @@ export function OpenApiManager({
                           {preview.securityProposals.length ? (
                             preview.securityProposals.map((proposal) => (
                               <p
-                                className="flex items-center justify-between gap-2 text-[10px]"
+                                className="flex items-center justify-between gap-2 text-[0.625rem]"
                                 key={proposal.schemeName}
                               >
                                 <span className="truncate">
@@ -773,7 +773,7 @@ export function OpenApiManager({
                               </p>
                             ))
                           ) : (
-                            <p className="text-[10px] text-muted">
+                            <p className="text-[0.625rem] text-muted">
                               No security schemes
                             </p>
                           )}
@@ -943,7 +943,7 @@ export function OpenApiManager({
                           />
                           <span
                             className={cn(
-                              "w-28 shrink-0 rounded-full border px-2 py-1 text-center text-[9px] font-semibold uppercase",
+                              "w-28 shrink-0 rounded-full border px-2 py-1 text-center text-[0.5625rem] font-semibold uppercase",
                               change.category === "added"
                                 ? "border-success/30 text-success"
                                 : change.category === "removed"
@@ -957,11 +957,11 @@ export function OpenApiManager({
                             <span className="block font-mono text-xs">
                               {change.label}
                             </span>
-                            <span className="mt-1 block text-[11px] text-muted">
+                            <span className="mt-1 block text-[0.6875rem] text-muted">
                               {change.details.join(" · ")}
                             </span>
                             {change.customized ? (
-                              <span className="mt-1 block text-[10px] text-warning">
+                              <span className="mt-1 block text-[0.625rem] text-warning">
                                 Customized request will be preserved
                               </span>
                             ) : null}

@@ -123,9 +123,9 @@ describe("Azure-backed authentication resolution", () => {
     mocks.getEffectiveAuthProfile.mockResolvedValue(
       profile("oauth2_client_credentials", {
         tokenUrl: "https://login.example.test/token",
-        clientId: "client-id",
         secretReferences: {
           ...defaultAuthConfiguration().secretReferences,
+          clientId: { ...reference, secretName: "client-id" },
           clientSecret: reference,
         },
       }),
@@ -143,16 +143,26 @@ describe("Azure-backed authentication resolution", () => {
     expect(result.plan.headers[0]?.value).toBe("Bearer cached-access-token");
   });
 
-  it("resolves the Key Vault client secret immediately before OAuth renewal", async () => {
+  it("resolves the Key Vault client credentials immediately before OAuth renewal", async () => {
+    const clientIdReference = { ...reference, secretName: "client-id" };
+    const clientSecretReference = {
+      ...reference,
+      secretName: "client-secret",
+    };
     mocks.getEffectiveAuthProfile.mockResolvedValue(
       profile("oauth2_client_credentials", {
         tokenUrl: "https://login.example.test/token",
-        clientId: "client-id",
         secretReferences: {
           ...defaultAuthConfiguration().secretReferences,
-          clientSecret: reference,
+          clientId: clientIdReference,
+          clientSecret: clientSecretReference,
         },
       }),
+    );
+    mocks.resolveKeyVaultSecret.mockImplementation(async (secretReference) =>
+      secretReference.secretName === "client-id"
+        ? "key-vault-client-id"
+        : "key-vault-client-secret",
     );
     mocks.executeHttpRequest.mockResolvedValue({
       statusCode: 200,
@@ -164,13 +174,18 @@ describe("Azure-backed authentication resolution", () => {
     });
 
     const result = await resolve();
-    expect(mocks.resolveKeyVaultSecret).toHaveBeenCalledOnce();
+    expect(mocks.resolveKeyVaultSecret).toHaveBeenCalledTimes(2);
     expect(mocks.executeHttpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({
-          content: expect.stringContaining("client_secret=key-vault-secret"),
+          content: expect.stringMatching(
+            /client_id=key-vault-client-id[\s\S]*client_secret=key-vault-client-secret/,
+          ),
         }),
-        secretValues: expect.arrayContaining(["key-vault-secret"]),
+        secretValues: expect.arrayContaining([
+          "key-vault-client-id",
+          "key-vault-client-secret",
+        ]),
       }),
       expect.any(AbortSignal),
     );

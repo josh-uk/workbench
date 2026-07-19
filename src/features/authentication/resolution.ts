@@ -15,7 +15,7 @@ import {
   AuthDomainError,
   type EffectiveAuthProfile,
   parseAuthConfiguration,
-  secretFieldsForAuthType,
+  referencedFieldsForAuthType,
 } from "@/features/authentication/domain";
 import { resolveKeyVaultSecret } from "@/features/authentication/azure/key-vault";
 import { AzureAuthenticationError } from "@/features/authentication/azure/domain";
@@ -62,7 +62,7 @@ function interpolateConfiguration(
 async function resolveReferencedSecrets(
   profile: EffectiveAuthProfile,
   signal: AbortSignal,
-  fields = secretFieldsForAuthType(profile.type),
+  fields = referencedFieldsForAuthType(profile.type),
 ): Promise<EffectiveAuthProfile> {
   const configuration = structuredClone(profile.configuration);
   for (const key of fields) {
@@ -159,6 +159,7 @@ async function requestOAuthToken(
       },
       settings: sourcePlan.settings,
       secretValues: [
+        config.secretReferences.clientId ? config.clientId : "",
         config.clientSecret,
         fields.password ?? "",
         fields.refresh_token ?? "",
@@ -286,7 +287,8 @@ export async function resolveAuthentication(input: {
       });
     }
     const usesCachedRefreshToken = Boolean(cached?.refreshToken);
-    const neededSecretFields = [
+    const neededReferenceFields = [
+      "clientId" as const,
       "clientSecret" as const,
       ...(!usesCachedRefreshToken && profile.type === "oauth2_password"
         ? (["password"] as const)
@@ -298,7 +300,7 @@ export async function resolveAuthentication(input: {
     profile = await resolveReferencedSecrets(
       profile,
       input.signal,
-      neededSecretFields,
+      neededReferenceFields,
     );
     const token = await requestOAuthToken(
       profile,

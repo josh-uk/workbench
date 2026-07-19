@@ -12,11 +12,51 @@ export function assertTrustedMutation(request: Request) {
     );
   }
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) {
+  const fetchSite = request.headers.get("sec-fetch-site");
+  if (
+    fetchSite === "cross-site" ||
+    (origin && !requestOrigins(request).has(origin))
+  ) {
     throw new AzureAuthenticationError(
       "Cross-origin Azure requests are not allowed.",
       "AZURE_REQUEST_FORBIDDEN",
     );
+  }
+}
+
+function requestOrigins(request: Request) {
+  const requestUrl = new URL(request.url);
+  const origins = new Set([requestUrl.origin]);
+  const host = request.headers.get("host");
+  const forwardedHost = firstForwardedValue(
+    request.headers.get("x-forwarded-host"),
+  );
+  const forwardedProtocol = firstForwardedValue(
+    request.headers.get("x-forwarded-proto"),
+  );
+
+  addOrigin(origins, requestUrl.protocol, host);
+  addOrigin(origins, forwardedProtocol, forwardedHost ?? host);
+  return origins;
+}
+
+function firstForwardedValue(value: string | null) {
+  return value?.split(",", 1)[0]?.trim() || null;
+}
+
+function addOrigin(
+  origins: Set<string>,
+  protocol: string | null,
+  host: string | null,
+) {
+  const normalizedProtocol = protocol?.replace(/:$/, "");
+  if (!normalizedProtocol || !host || !/^https?$/.test(normalizedProtocol)) {
+    return;
+  }
+  try {
+    origins.add(new URL(`${normalizedProtocol}://${host}`).origin);
+  } catch {
+    // Invalid forwarding metadata is never trusted as an allowed origin.
   }
 }
 

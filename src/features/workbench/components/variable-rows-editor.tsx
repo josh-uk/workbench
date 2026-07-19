@@ -28,7 +28,7 @@ export function VariableRowsEditor({
 
   return (
     <div className="overflow-hidden rounded-lg border">
-      <div className="grid grid-cols-[32px_minmax(120px,0.8fr)_minmax(180px,1.4fr)_62px_36px] items-center gap-2 border-b bg-surface-subtle px-2 py-2 text-[10px] font-semibold tracking-wider text-muted uppercase">
+      <div className="grid grid-cols-[32px_minmax(120px,0.8fr)_minmax(180px,1.4fr)_62px_36px] items-center gap-2 border-b bg-surface-subtle px-2 py-2 text-[0.625rem] font-semibold tracking-wider text-muted uppercase">
         <span>On</span>
         <span>Name</span>
         <span>Value</span>

@@ -186,7 +186,7 @@ export function CommandPalette({
                   {action.shortcut ? (
                     <kbd
                       aria-hidden="true"
-                      className="shrink-0 rounded border bg-surface-subtle px-2 py-1 font-sans text-[10px] text-muted"
+                      className="shrink-0 rounded border bg-surface-subtle px-2 py-1 font-sans text-[0.625rem] text-muted"
                     >
                       {action.shortcut}
                     </kbd>

@@ -138,6 +138,11 @@ test.describe.serial("workspace and project management", () => {
 
     await page.getByRole("button", { name: "Use light theme" }).click();
     await expect(page.locator("[data-theme='light']")).toBeVisible();
+    await page.reload();
+    await expect(page.locator("[data-theme='light']")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Use dark theme" }),
+    ).toBeVisible();
   });
 
   test("saves, executes, inspects, persists, and cancels a request", async ({
@@ -316,7 +321,7 @@ test.describe.serial("workspace and project management", () => {
     await page
       .getByLabel("Token URL")
       .fill("https://identity.example.test/oauth/token");
-    await page.getByLabel("Client ID").fill("workbench-demo");
+    await page.getByLabel("Client ID", { exact: true }).fill("workbench-demo");
     await page
       .getByLabel("Client secret", { exact: true })
       .fill("not-a-real-secret");

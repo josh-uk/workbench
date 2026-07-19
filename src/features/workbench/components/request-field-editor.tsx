@@ -56,7 +56,7 @@ export function RequestFieldEditor({
           />
           {allowSecrets ? (
             <>
-              <label className="flex items-center gap-1 text-[10px] text-muted">
+              <label className="flex items-center gap-1 text-[0.625rem] text-muted">
                 <input
                   aria-label={`Field ${index + 1} is secret`}
                   checked={item.secret}

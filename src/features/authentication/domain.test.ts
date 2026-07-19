@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultAuthConfiguration,
   parseAuthConfiguration,
-  secretFieldsForAuthType,
+  referencedFieldsForAuthType,
 } from "./domain";
 
 describe("authentication secret references", () => {
@@ -14,6 +14,7 @@ describe("authentication secret references", () => {
       token: null,
       password: null,
       key: null,
+      clientId: null,
       clientSecret: null,
       refreshToken: null,
     });
@@ -38,12 +39,33 @@ describe("authentication secret references", () => {
     );
   });
 
+  it("clears a stored client ID when Key Vault owns it", () => {
+    const configuration = parseAuthConfiguration({
+      ...defaultAuthConfiguration(),
+      clientId: "must-not-remain",
+      secretReferences: {
+        clientId: {
+          provider: "azure_key_vault",
+          vaultUrl: "https://workbench-secrets.vault.azure.net/",
+          secretName: "oauth-client-id",
+          version: "",
+        },
+      },
+    });
+
+    expect(configuration.clientId).toBe("");
+    expect(configuration.secretReferences.clientId?.secretName).toBe(
+      "oauth-client-id",
+    );
+  });
+
   it("resolves only fields used by each authentication type", () => {
-    expect(secretFieldsForAuthType("bearer")).toEqual(["token"]);
-    expect(secretFieldsForAuthType("oauth2_password")).toEqual([
+    expect(referencedFieldsForAuthType("bearer")).toEqual(["token"]);
+    expect(referencedFieldsForAuthType("oauth2_password")).toEqual([
+      "clientId",
       "clientSecret",
       "password",
     ]);
-    expect(secretFieldsForAuthType("request_derived")).toEqual([]);
+    expect(referencedFieldsForAuthType("request_derived")).toEqual([]);
   });
 });

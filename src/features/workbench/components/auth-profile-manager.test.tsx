@@ -92,6 +92,91 @@ describe("AuthProfileManager", () => {
     );
   });
 
+  it("saves an Azure Key Vault source for an OAuth client ID", async () => {
+    const user = userEvent.setup();
+    const configuration = {
+      profiles: [
+        {
+          id: "a47ac10b-58cc-4372-a567-0e02b2c3d479",
+          workspaceId: null,
+          projectId: "b47ac10b-58cc-4372-a567-0e02b2c3d479",
+          tokenRequestId: null,
+          name: "Project OAuth",
+          type: "oauth2_client_credentials" as const,
+          configuration: {
+            ...defaultAuthConfiguration(),
+            tokenUrl: "https://auth.example.test/token",
+            clientId: "workbench-client",
+            clientSecret: "••••••••",
+          },
+          inherited: false,
+          overridden: false,
+        },
+      ],
+      tokenRequests: [],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => ({
+        ok: true,
+        json: async () =>
+          String(input).includes("/azure")
+            ? { status: "disconnected", cliAvailable: true }
+            : structuredClone(configuration),
+      })),
+    );
+    vi.mocked(saveAuthProfileAction).mockResolvedValue({
+      ok: true,
+      data: { id: configuration.profiles[0].id },
+    });
+
+    render(
+      <AuthProfileManager
+        onClose={vi.fn()}
+        project={{
+          id: "b47ac10b-58cc-4372-a567-0e02b2c3d479",
+          name: "Facts API",
+        }}
+        workspace={{
+          id: "c47ac10b-58cc-4372-a567-0e02b2c3d479",
+          name: "Work",
+        }}
+      />,
+    );
+
+    await screen.findByDisplayValue("Project OAuth");
+    await user.selectOptions(
+      screen.getByLabelText("Client ID source"),
+      "azure_key_vault",
+    );
+    await user.type(
+      screen.getByLabelText("Client ID vault URL"),
+      "https://workbench-secrets.vault.azure.net/",
+    );
+    await user.type(
+      screen.getByLabelText("Client ID secret name"),
+      "oauth-client-id",
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(saveAuthProfileAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          configuration: expect.objectContaining({
+            clientId: "",
+            secretReferences: expect.objectContaining({
+              clientId: expect.objectContaining({
+                provider: "azure_key_vault",
+                vaultUrl: "https://workbench-secrets.vault.azure.net/",
+                secretName: "oauth-client-id",
+              }),
+            }),
+          }),
+        }),
+      ),
+    );
+  });
+
   it("saves an Azure Key Vault source without a stored secret", async () => {
     const user = userEvent.setup();
     const configuration = {
