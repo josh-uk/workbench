@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS build-base
+FROM --platform=$BUILDPLATFORM node:25-bookworm-slim AS build-base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
-FROM node:24-bookworm-slim AS azure-cli-base
+FROM node:25-bookworm-slim AS azure-cli-base
 ARG AZURE_CLI_VERSION=2.88.0
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
